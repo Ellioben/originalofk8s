@@ -1,7 +1,9 @@
 # gopls gets indigestion without go.work, CI gets indigestion WITH go.work
 /go.work
 /go.work.sum
-
+logo/*
+cluster/image/*
+pkg/util/labels/*
 # OSX leaves these everywhere on SMB shares
 ._*
 

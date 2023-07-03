@@ -202,6 +202,9 @@ func (q *delayingType) ShutDown() {
 }
 
 // AddAfter adds the given item to the work queue after the given delay
+// AddAfter 方法：这个方法用于在指定的延迟时间后将项目添加到队列中。
+//如果延迟时间小于等于0，则项目立即被添加到工作队列中。
+//否则，项目将被封装为一个 waitFor 结构体，并发送到 waitingForAddCh 通道。
 func (q *delayingType) AddAfter(item interface{}, duration time.Duration) {
 	// don't add if we're already shutting down
 	if q.ShuttingDown() {
@@ -229,6 +232,7 @@ func (q *delayingType) AddAfter(item interface{}, duration time.Duration) {
 const maxWait = 10 * time.Second
 
 // waitingLoop runs until the workqueue is shutdown and keeps a check on the list of items to be added.
+//waitingLoop 方法：这个方法在单独的 Goroutine 中运行，主要负责监控待处理任务，根据它们的到期时间将其添加到工作队列中。
 func (q *delayingType) waitingLoop() {
 	defer utilruntime.HandleCrash()
 
@@ -272,7 +276,9 @@ func (q *delayingType) waitingLoop() {
 			nextReadyAtTimer = q.clock.NewTimer(entry.readyAt.Sub(now))
 			nextReadyAt = nextReadyAtTimer.C()
 		}
-
+		////
+		//上面的代码中的select方法，满足心跳时间 或者 pop后的heap的第一个元素的时间已经到了 或者q.waitingForAddCh channel有数据，
+		//就进入下一次的for循环。
 		select {
 		case <-q.stopCh:
 			return

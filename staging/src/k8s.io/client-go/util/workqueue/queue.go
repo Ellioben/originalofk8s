@@ -137,7 +137,6 @@ type Type struct {
 	unfinishedWorkUpdatePeriod time.Duration
 	clock                      clock.WithTicker
 }
-
 type empty struct{}
 type t interface{}
 type set map[t]empty

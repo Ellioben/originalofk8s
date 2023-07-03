@@ -264,6 +264,8 @@ func (o *CreateOptions) RunCreate(f cmdutil.Factory, cmd *cobra.Command) error {
 	}
 
 	count := 0
+	//fn(info, nil) is called for each object
+	//外层visit实现
 	err = r.Visit(func(info *resource.Info, err error) error {
 		if err != nil {
 			return err
@@ -275,17 +277,19 @@ func (o *CreateOptions) RunCreate(f cmdutil.Factory, cmd *cobra.Command) error {
 		if err := o.Recorder.Record(info.Object); err != nil {
 			klog.V(4).Infof("error recording current command: %v", err)
 		}
-
+		//DryRunClient不会真正创建资源，只是模拟创建
 		if o.DryRunStrategy != cmdutil.DryRunClient {
 			obj, err := resource.
 				NewHelper(info.Client, info.Mapping).
 				DryRun(o.DryRunStrategy == cmdutil.DryRunServer).
 				WithFieldManager(o.fieldManager).
 				WithFieldValidation(o.ValidationDirective).
+				//Create会调用RESTClient.Post方法
 				Create(info.Namespace, true, info.Object)
 			if err != nil {
 				return cmdutil.AddSourceToErr("creating", info.Source, err)
 			}
+			//Refresh会调用RESTClient.Get方法
 			info.Refresh(obj, true)
 		}
 

@@ -136,8 +136,11 @@ func IsUsageError(err error) bool {
 }
 
 type FilenameOptions struct {
+	//Filenames是yaml文件的路径
 	Filenames []string
+	//Kustomize是k8s的一个工具，用于对k8s的yaml文件进行修改，比如修改namespace，image等
 	Kustomize string
+	//递归-R
 	Recursive bool
 }
 
@@ -240,6 +243,7 @@ func (b *Builder) AddError(err error) *Builder {
 // If ContinueOnError() is set prior to this method, objects on the path that are not
 // recognized will be ignored (but logged at V(2)).
 func (b *Builder) FilenameParam(enforceNamespace bool, filenameOptions *FilenameOptions) *Builder {
+	//校验传入的值，filename或者Kustomize只能有一个
 	if errs := filenameOptions.validate(); len(errs) > 0 {
 		b.errs = append(b.errs, errs...)
 		return b
@@ -248,8 +252,10 @@ func (b *Builder) FilenameParam(enforceNamespace bool, filenameOptions *Filename
 	paths := filenameOptions.Filenames
 	for _, s := range paths {
 		switch {
+		//如果是-，则从标准输入读取
 		case s == "-":
 			b.Stdin()
+		//如果是http或者https开头，则是url
 		case strings.Index(s, "http://") == 0 || strings.Index(s, "https://") == 0:
 			url, err := url.Parse(s)
 			if err != nil {
@@ -257,6 +263,7 @@ func (b *Builder) FilenameParam(enforceNamespace bool, filenameOptions *Filename
 				continue
 			}
 			b.URL(defaultHttpGetAttempts, url)
+		//如果是目录，则递归读取目录下的文件
 		default:
 			matches, err := expandIfFilePattern(s)
 			if err != nil {
@@ -266,6 +273,7 @@ func (b *Builder) FilenameParam(enforceNamespace bool, filenameOptions *Filename
 			if !recursive && len(matches) == 1 {
 				b.singleItemImplied = true
 			}
+			//如果是目录，则递归读取目录下的文件
 			b.Path(recursive, matches...)
 		}
 	}
@@ -1164,11 +1172,13 @@ func (b *Builder) Do() *Result {
 	if b.flatten {
 		r.visitor = NewFlattenListVisitor(r.visitor, b.objectTyper, b.mapper)
 	}
+	//一堆visitFuc的集合
 	helpers := []VisitorFunc{}
 	if b.defaultNamespace {
 		helpers = append(helpers, SetNamespace(b.namespace))
 	}
 	if b.requireNamespace {
+		//-->RequireNamespace
 		helpers = append(helpers, RequireNamespace(b.namespace))
 	}
 	helpers = append(helpers, FilterNamespace)

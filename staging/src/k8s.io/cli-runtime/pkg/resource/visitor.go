@@ -584,6 +584,7 @@ func (v *StreamVisitor) Visit(fn VisitorFunc) error {
 			}
 			continue
 		}
+		//	info.Source = v.Source,建造之模式创建完后，执行具体的kubectl执行逻辑
 		if err := fn(info, nil); err != nil {
 			return err
 		}
@@ -639,6 +640,7 @@ func RequireNamespace(namespace string) VisitorFunc {
 		if err != nil {
 			return err
 		}
+		// If the object is not namespaced, we don't care about the namespace.
 		if !info.Namespaced() {
 			return nil
 		}

@@ -40,6 +40,8 @@ type mapper struct {
 // if any of the decoding or client lookup steps fail. Name and namespace will be
 // set into Info if the mapping's MetadataAccessor can retrieve them.
 func (m *mapper) infoForData(data []byte, source string) (*Info, error) {
+	//obj代表k8s对象
+	//gvk代表k8s对象的GroupVersionKind
 	obj, gvk, err := m.decoder.Decode(data, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to decode %q: %v", source, err)

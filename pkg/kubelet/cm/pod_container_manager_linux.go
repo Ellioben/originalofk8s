@@ -69,6 +69,7 @@ func (m *podContainerManagerImpl) Exists(pod *v1.Pod) bool {
 // EnsureExists takes a pod as argument and makes sure that
 // pod cgroup exists if qos cgroup hierarchy flag is enabled.
 // If the pod level container doesn't already exist it is created.
+//这个方法确保pod的cgroup存在，如果qos cgroup层次结构标志被启用。如果pod级别的容器不存在，则创建它。
 func (m *podContainerManagerImpl) EnsureExists(pod *v1.Pod) error {
 	// check if container already exist
 	alreadyExists := m.Exists(pod)
@@ -79,6 +80,7 @@ func (m *podContainerManagerImpl) EnsureExists(pod *v1.Pod) error {
 			enforceMemoryQoS = true
 		}
 		// Create the pod container
+		//	获取pod容器的cgroup相关信息
 		podContainerName, _ := m.GetPodContainerName(pod)
 		containerConfig := &CgroupConfig{
 			Name:               podContainerName,
@@ -98,6 +100,7 @@ func (m *podContainerManagerImpl) EnsureExists(pod *v1.Pod) error {
 }
 
 // GetPodContainerName returns the CgroupName identifier, and its literal cgroupfs form on the host.
+// GetPodContainerName返回CgroupName标识符及其在主机上的文字cgroupfs形式。
 func (m *podContainerManagerImpl) GetPodContainerName(pod *v1.Pod) (CgroupName, string) {
 	podQOS := v1qos.GetPodQOS(pod)
 	// Get the parent QOS container name

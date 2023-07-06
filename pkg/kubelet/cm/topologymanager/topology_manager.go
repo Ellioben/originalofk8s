@@ -37,6 +37,10 @@ const (
 	// generate hints for them. As such, if more NUMA Nodes than this are
 	// present on a machine and the TopologyManager is enabled, an error will
 	// be returned and the TopologyManager will not be loaded.
+	//-----------------
+	//maxAllowableNUMANodes 指定拓扑管理器在底层计算机上支持的最大 NUMA 节点数。
+	//目前，在尝试枚举可能的 NUMAAffinity 掩码并为它们生成提示时，拥有超过此数量的 NUMA 节点将导致状态爆炸。
+	//因此，如果计算机上存在的 NUMA 节点数超过此值，并且启用了拓扑管理器，则将返回错误，并且不会加载拓扑管理器
 	maxAllowableNUMANodes = 8
 	// ErrorTopologyAffinity represents the type for a TopologyAffinityError
 	ErrorTopologyAffinity = "TopologyAffinityError"
@@ -139,7 +143,7 @@ func NewManager(topology []cadvisorapi.Node, topologyPolicyName string, topology
 	if err != nil {
 		return nil, err
 	}
-
+	//	获取Numa相关信息
 	numaInfo, err := NewNUMAInfo(topology, opts)
 	if err != nil {
 		return nil, fmt.Errorf("cannot discover NUMA topology: %w", err)

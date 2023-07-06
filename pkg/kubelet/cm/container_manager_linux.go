@@ -288,10 +288,22 @@ func NewContainerManager(mountUtil mount.Interface, cadvisorInterface cadvisor.I
 		qosContainerManager: qosContainerManager,
 	}
 
+	//初始化topology manager
 	cm.topologyManager, err = topologymanager.NewManager(
+		//参分析 machinelnfo.Topology代表cadvisor提供的节点numa节点拓扑信息
 		machineInfo.Topology,
+		//参分析 nodeConfig.TopologyManagerPolicy代表kubelet配置的拓扑管理策略
+		//none (默认)
+		//best-effort 没找到最优的拓扑建议时节点也会接纳这个pod
+		//restricted 没找到最优的拓扑建议时节点会拒绝这个pod
+		//single-numa-node 要求找到的最优的拓扑建议只包含1个numa节点，如果没有那么节点会拒绝这个pod
+		//ExperimentalTopologyManagerScope 代表拓扑管理器的作用域
 		nodeConfig.TopologyManagerPolicy,
+		//参分析 nodeConfig.TopologyManagerScope代表kubelet配置的拓扑管理范围
 		nodeConfig.TopologyManagerScope,
+		//ExperimentalTopologyManagerPolicyOptions 代表拓扑管理器作用域为pod时的选项
+		//container是默认的
+		//pod
 		nodeConfig.ExperimentalTopologyManagerPolicyOptions,
 	)
 
@@ -304,6 +316,7 @@ func NewContainerManager(mountUtil mount.Interface, cadvisorInterface cadvisor.I
 	if err != nil {
 		return nil, err
 	}
+	//添加拓扑管理器到拓扑管理器的hint提供者列表中
 	cm.topologyManager.AddHintProvider(cm.deviceManager)
 
 	// initialize DRA manager
@@ -330,6 +343,7 @@ func NewContainerManager(mountUtil mount.Interface, cadvisorInterface cadvisor.I
 		klog.ErrorS(err, "Failed to initialize cpu manager")
 		return nil, err
 	}
+	//添加拓扑管理器到拓扑管理器的hint提供者列表中
 	cm.topologyManager.AddHintProvider(cm.cpuManager)
 
 	if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.MemoryManager) {
@@ -345,6 +359,7 @@ func NewContainerManager(mountUtil mount.Interface, cadvisorInterface cadvisor.I
 			klog.ErrorS(err, "Failed to initialize memory manager")
 			return nil, err
 		}
+		//添加拓扑管理器到拓扑管理器的hint提供者列表中
 		cm.topologyManager.AddHintProvider(cm.memoryManager)
 	}
 

@@ -55,40 +55,50 @@ func (s *sourcesReadyStub) AllReady() bool          { return true }
 // Manager interface provides methods for Kubelet to manage pod memory.
 type Manager interface {
 	// Start is called during Kubelet initialization.
+	//	// 在kubelet初始化的时候回调用 start启动memoryManager作为 containerManager的一部分
 	Start(activePods ActivePodsFunc, sourcesReady config.SourcesReady, podStatusProvider status.PodStatusProvider, containerRuntime runtimeService, initialContainers containermap.ContainerMap) error
 
 	// AddContainer adds the mapping between container ID to pod UID and the container name
 	// The mapping used to remove the memory allocation during the container removal
+	// AddContainer 将请求的requestmemory保存下来，等待分配
 	AddContainer(p *v1.Pod, c *v1.Container, containerID string)
 
 	// Allocate is called to pre-allocate memory resources during Pod admission.
 	// This must be called at some point prior to the AddContainer() call for a container, e.g. at pod admission time.
+	// Allocate是在pod 准入控制的时候做内存的预分配的
 	Allocate(pod *v1.Pod, container *v1.Container) error
 
 	// RemoveContainer is called after Kubelet decides to kill or delete a
 	// container. After this call, any memory allocated to the container is freed.
+	// RemoveContainer 就是删除容器是调用 容器内存清理的
 	RemoveContainer(containerID string) error
 
 	// State returns a read-only interface to the internal memory manager state.
+	// State 返回memoryManager的可读状态
 	State() state.Reader
 
 	// GetTopologyHints implements the topologymanager.HintProvider Interface
 	// and is consulted to achieve NUMA aware resource alignment among this
 	// and other resource controllers.
+	// GetTopologyHints 是可以感知numa拓扑的方法（获取拓扑的状态）
 	GetTopologyHints(*v1.Pod, *v1.Container) map[string][]topologymanager.TopologyHint
 
 	// GetPodTopologyHints implements the topologymanager.HintProvider Interface
 	// and is consulted to achieve NUMA aware resource alignment among this
 	// and other resource controllers.
+	//	// GetPodTopologyHints 是可以感知numa拓扑的方法（获取拓扑的状态）
 	GetPodTopologyHints(*v1.Pod) map[string][]topologymanager.TopologyHint
 
 	// GetMemoryNUMANodes provides NUMA nodes that are used to allocate the container memory
+	// 给容器分配内存的numa 节点
 	GetMemoryNUMANodes(pod *v1.Pod, container *v1.Container) sets.Int
 
 	// GetAllocatableMemory returns the amount of allocatable memory for each NUMA node
+	// GetAllocatableMemory 返回每一个 NUMA node已分配的内存
 	GetAllocatableMemory() []state.Block
 
 	// GetMemory returns the memory allocated by a container from NUMA nodes
+	// GetMemory 从NUMA nodes获取容器分配的内存信息
 	GetMemory(podUID, containerName string) []state.Block
 }
 
@@ -98,14 +108,18 @@ type manager struct {
 
 	// state allows to restore information regarding memory allocation for guaranteed pods
 	// in the case of the kubelet restart
+	// state  存储了guaranteed pods内存分配的信息，那么在kubelet重启的情况下 可以用来恢复有关的信息
 	state state.State
 
 	// containerRuntime is the container runtime service interface needed
 	// to make UpdateContainerResources() calls against the containers.
+	// containerRuntime 是container runtime service的接口，用来调用UpdateContainerResources()方法
 	containerRuntime runtimeService
 
 	// activePods is a method for listing active pods on the node
 	// so all the containers can be updated during call to the removeStaleState.
+	// activePods 获取activepod的方法
+
 	activePods ActivePodsFunc
 
 	// podStatusProvider provides a method for obtaining pod statuses
@@ -142,11 +156,13 @@ func NewManager(policyName string, machineInfo *cadvisorapi.MachineInfo, nodeAll
 		policy = NewPolicyNone()
 
 	case policyTypeStatic:
+		// 获取系统预留的内存信息
 		systemReserved, err := getSystemReservedMemory(machineInfo, nodeAllocatableReservation, reservedMemory)
 		if err != nil {
 			return nil, err
 		}
 
+		// 创建一个静态的policy
 		policy, err = NewPolicyStatic(machineInfo, systemReserved, affinity)
 		if err != nil {
 			return nil, err
@@ -203,7 +219,9 @@ func (m *manager) AddContainer(pod *v1.Pod, container *v1.Container, containerID
 	// started init containers. This will free up the memory from these init containers
 	// for use in other pods. If the current container happens to be an init container,
 	// we skip deletion of it until the next container is added, and this is called again.
+	//遍历pod的init container，如果init container的名字和当前的container的名字不一样，那么就删除init container的内存信息
 	for _, initContainer := range pod.Spec.InitContainers {
+
 		if initContainer.Name == container.Name {
 			break
 		}
@@ -245,6 +263,7 @@ func (m *manager) Allocate(pod *v1.Pod, container *v1.Container) error {
 	defer m.Unlock()
 
 	// Call down into the policy to assign this container memory if required.
+	//调用policy的Allocate方法，分配内存
 	if err := m.policy.Allocate(m.state, pod, container); err != nil {
 		klog.ErrorS(err, "Allocate error")
 		return err

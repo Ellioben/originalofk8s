@@ -145,8 +145,10 @@ func (s *scope) admitPolicyNone(pod *v1.Pod) lifecycle.PodAdmitResult {
 
 // It would be better to implement this function in topologymanager instead of scope
 // but topologymanager do not track providers anymore
+//
 func (s *scope) allocateAlignedResources(pod *v1.Pod, container *v1.Container) error {
 	for _, provider := range s.hintProviders {
+		// 根据hintProvider的类型，调用不同的Allocate函数
 		err := provider.Allocate(pod, container)
 		if err != nil {
 			return err

@@ -173,6 +173,7 @@ func calcRestartCountByLogDir(path string) (int, error) {
 // * create the container
 // * start the container
 // * run the post start lifecycle hooks (if applicable)
+// 这个方法是真正创建容器的方法，包括了创建容器、启动容器、执行容器的生命周期钩子等
 func (m *kubeGenericRuntimeManager) startContainer(ctx context.Context, podSandboxID string, podSandboxConfig *runtimeapi.PodSandboxConfig, spec *startSpec, pod *v1.Pod, podStatus *kubecontainer.PodStatus, pullSecrets []v1.Secret, podIP string, podIPs []string) (string, error) {
 	container := spec.container
 
@@ -239,6 +240,7 @@ func (m *kubeGenericRuntimeManager) startContainer(ctx context.Context, podSandb
 		m.recordContainerEvent(pod, container, containerID, v1.EventTypeWarning, events.FailedToCreateContainer, "Error: %v", s.Message())
 		return s.Message(), ErrCreateContainer
 	}
+	//PreStartContainer是一个生命周期钩子，用于在容器启动之前执行一些操作，比如修改容器的配置等
 	err = m.internalLifecycle.PreStartContainer(pod, container, containerID)
 	if err != nil {
 		s, _ := grpcstatus.FromError(err)

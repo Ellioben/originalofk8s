@@ -45,7 +45,7 @@ func (i *internalContainerLifecycleImpl) PreStartContainer(pod *v1.Pod, containe
 	if i.memoryManager != nil {
 		i.memoryManager.AddContainer(pod, container, containerID)
 	}
-
+	// 把信息添加在topolyManager中的containerMap结构中
 	i.topologyManager.AddContainer(pod, container, containerID)
 
 	return nil

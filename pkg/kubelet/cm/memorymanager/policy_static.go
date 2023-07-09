@@ -66,6 +66,7 @@ func NewPolicyStatic(machineInfo *cadvisorapi.MachineInfo, reserved systemReserv
 	}
 
 	// check if we have some reserved memory for the system
+	// 判断是否有为系统保留的内存
 	if totalSystemReserved <= 0 {
 		return nil, fmt.Errorf("[memorymanager] you should specify the system reserved memory")
 	}
@@ -99,6 +100,7 @@ func (p *staticPolicy) Allocate(s state.State, pod *v1.Pod, container *v1.Contai
 
 	podUID := string(pod.UID)
 	klog.InfoS("Allocate", "pod", klog.KObj(pod), "containerName", container.Name)
+	//根据poduid和container.Name在缓存中查找MemoryBlocks,如果有说明需要更新本地内存分配缓存
 	if blocks := s.GetMemoryBlocks(podUID, container.Name); blocks != nil {
 		p.updatePodReusableMemory(pod, container, blocks)
 
@@ -107,14 +109,17 @@ func (p *staticPolicy) Allocate(s state.State, pod *v1.Pod, container *v1.Contai
 	}
 
 	// Call Topology Manager to get the aligned affinity across all hint providers.
+	// 获取容器的拓扑最佳亲和性
 	hint := p.affinity.GetAffinity(podUID, container.Name)
 	klog.InfoS("Got topology affinity", "pod", klog.KObj(pod), "podUID", pod.UID, "containerName", container.Name, "hint", hint)
 
+	//获取容器请求信息
 	requestedResources, err := getRequestedResources(pod, container)
 	if err != nil {
 		return err
 	}
 
+	//在本地内存缓存中，获取numa节点的内存分配情况（状态）
 	machineState := s.GetMachineState()
 	bestHint := &hint
 	// topology manager returned the hint with NUMA affinity nil
@@ -133,6 +138,7 @@ func (p *staticPolicy) Allocate(s state.State, pod *v1.Pod, container *v1.Contai
 
 	// topology manager returns the hint that does not satisfy completely the container request
 	// we should extend this hint to the one who will satisfy the request and include the current hint
+	//如果	topology manager返回的hint不能满足容器的请求，那么我们需要扩展这个hint，直到满足容器的请求
 	if !isAffinitySatisfyRequest(machineState, bestHint.NUMANodeAffinity, requestedResources) {
 		extendedHint, err := p.extendTopologyManagerHint(machineState, pod, requestedResources, bestHint.NUMANodeAffinity)
 		if err != nil {
@@ -145,6 +151,7 @@ func (p *staticPolicy) Allocate(s state.State, pod *v1.Pod, container *v1.Contai
 		bestHint = extendedHint
 	}
 
+	//更新containerBlocks，machineState，podReusableMemory
 	var containerBlocks []state.Block
 	maskBits := bestHint.NUMANodeAffinity.GetBits()
 	for resourceName, requestedSize := range requestedResources {

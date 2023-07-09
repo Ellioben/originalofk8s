@@ -147,6 +147,7 @@ func (rc *reconciler) reconcile() {
 	}
 
 	// Ensure plugins that should be registered are registered
+	// 循环遍历所有的插件，如果插件不存在，则注册插件
 	for _, pluginToRegister := range rc.desiredStateOfWorld.GetPluginsToRegister() {
 		if !rc.actualStateOfWorld.PluginExistsWithCorrectTimestamp(pluginToRegister) {
 			klog.V(5).InfoS("Starting operationExecutor.RegisterPlugin", "plugin", pluginToRegister)

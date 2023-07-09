@@ -72,6 +72,13 @@ type OperationGenerator interface {
 		actualStateOfWorldUpdater ActualStateOfWorldUpdater) func() error
 }
 
+// GenerateRegisterPluginFunc GenerateRegisterPluginFunc方法的作用
+// 1. 生成一个函数，这个函数的作用是注册插件
+// 2. 这个函数的参数是socketPath，timestamp，pluginHandlers，actualStateOfWorldUpdater
+// 3. 这个函数的返回值是error
+// 4. 这个函数的实现是通过调用dial方法，然后调用client.GetInfo方法，然后调用client.NotifyRegistrationStatus方法
+// 5. 这个函数的实现是通过调用actualStateOfWorldUpdater.UpdatePluginRegistrationStatus方法
+// 6. 这个函数的实现是通过调用actualStateOfWorldUpdater.UpdatePluginStatus方法、
 func (og *operationGenerator) GenerateRegisterPluginFunc(
 	socketPath string,
 	timestamp time.Time,
@@ -79,6 +86,7 @@ func (og *operationGenerator) GenerateRegisterPluginFunc(
 	actualStateOfWorldUpdater ActualStateOfWorldUpdater) func() error {
 
 	registerPluginFunc := func() error {
+		// dial作用是连接socketPath
 		client, conn, err := dial(socketPath, dialTimeoutDuration)
 		if err != nil {
 			return fmt.Errorf("RegisterPlugin error -- dial failed at socket %s, err: %v", socketPath, err)
@@ -121,6 +129,7 @@ func (og *operationGenerator) GenerateRegisterPluginFunc(
 		if err != nil {
 			klog.ErrorS(err, "RegisterPlugin error -- failed to add plugin", "path", socketPath)
 		}
+		//RegisterPlugin作用是注册插件
 		if err := handler.RegisterPlugin(infoResp.Name, infoResp.Endpoint, infoResp.SupportedVersions); err != nil {
 			return og.notifyPlugin(client, false, fmt.Sprintf("RegisterPlugin error -- plugin registration failed with err: %v", err))
 		}

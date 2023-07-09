@@ -125,10 +125,13 @@ func newManagerImpl(socketPath string, topology []cadvisorapi.Node, topologyAffi
 	klog.V(2).InfoS("Creating Device Plugin manager", "path", socketPath)
 
 	var numaNodes []int
+	//获取numa节点数组
 	for _, node := range topology {
 		numaNodes = append(numaNodes, node.Id)
 	}
 
+	// Sort the NUMA nodes in ascending order
+	// 初始化manager，创建一个空的manager
 	manager := &ManagerImpl{
 		endpoints: make(map[string]endpointInfo),
 
@@ -221,6 +224,7 @@ func (m *ManagerImpl) PluginConnected(resourceName string, p plugin.DevicePlugin
 
 // PluginDisconnected is to disconnect a plugin from an endpoint.
 // This is done as part of device plugin deregistration.
+// 这个方法是在device plugin注销的时候调用的
 func (m *ManagerImpl) PluginDisconnected(resourceName string) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
@@ -245,6 +249,7 @@ func (m *ManagerImpl) PluginListAndWatchReceiver(resourceName string, resp *plug
 	m.genericDeviceUpdateCallback(resourceName, devices)
 }
 
+// 这个方法是在device plugin的ListAndWatch方法中调用的，用来更新设备的状态
 func (m *ManagerImpl) genericDeviceUpdateCallback(resourceName string, devices []pluginapi.Device) {
 	m.mutex.Lock()
 	m.healthyDevices[resourceName] = sets.NewString()
@@ -277,6 +282,7 @@ func (m *ManagerImpl) checkpointFile() string {
 // Start starts the Device Plugin Manager and start initialization of
 // podDevices and allocatedDevices information from checkpointed state and
 // starts device plugin registration service.
+// Startt方法是在kubelet启动的时候调用的，用来启动device plugin manager
 func (m *ManagerImpl) Start(activePods ActivePodsFunc, sourcesReady config.SourcesReady) error {
 	klog.V(2).InfoS("Starting Device Plugin manager")
 
@@ -284,6 +290,7 @@ func (m *ManagerImpl) Start(activePods ActivePodsFunc, sourcesReady config.Sourc
 	m.sourcesReady = sourcesReady
 
 	// Loads in allocatedDevices information from disk.
+	//	从磁盘中加载已经分配的设备信息
 	err := m.readCheckpoint()
 	if err != nil {
 		klog.InfoS("Continue after failing to read checkpoint file. Device allocation info may NOT be up-to-date", "err", err)
@@ -301,6 +308,15 @@ func (m *ManagerImpl) Stop() error {
 
 // Allocate is the call that you can use to allocate a set of devices
 // from the registered device plugins.
+// 分配设备
+//步骤：
+//	1. 保存pod信息
+//	2. 为init container分配设备
+//	3. 为app container分配设备
+//	4. 保存分配的设备信息
+//	5. 保存分配的设备信息到磁盘
+//	6. 返回分配的设备信息
+
 func (m *ManagerImpl) Allocate(pod *v1.Pod, container *v1.Container) error {
 	// The pod is during the admission phase. We need to save the pod to avoid it
 	// being cleaned before the admission ended
@@ -327,6 +343,7 @@ func (m *ManagerImpl) Allocate(pod *v1.Pod, container *v1.Container) error {
 			return nil
 		}
 	}
+	// allocateContainerResources是为pod中的container分配设备
 	if err := m.allocateContainerResources(pod, container, m.devicesToReuse[string(pod.UID)]); err != nil {
 		return err
 	}
@@ -448,6 +465,7 @@ func (m *ManagerImpl) readCheckpoint() error {
 	// the current version first. Trying to restore older format checkpoints is
 	// relevant only in the kubelet upgrade flow, which happens once in a
 	// (long) while.
+	//getCheckpointV2方法读取checkpoint文件，返回checkpoint.CheckpointV2对象
 	cp, err := m.getCheckpointV2()
 	if err != nil {
 		if err == errors.ErrCheckpointNotFound {
@@ -478,6 +496,7 @@ func (m *ManagerImpl) readCheckpoint() error {
 		// will stay zero till the corresponding device plugin re-registers.
 		m.healthyDevices[resource] = sets.NewString()
 		m.unhealthyDevices[resource] = sets.NewString()
+		//存放endpoint信息，newStoppedEndpointImpl的作用是返回一个endpointInfo对象，该对象的e字段是一个stoppedEndpointImpl对象
 		m.endpoints[resource] = endpointInfo{e: newStoppedEndpointImpl(resource), opts: nil}
 	}
 	return nil
@@ -528,6 +547,7 @@ func (m *ManagerImpl) UpdateAllocatedDevices() {
 
 // Returns list of device Ids we need to allocate with Allocate rpc call.
 // Returns empty list in case we don't need to issue the Allocate rpc call.
+// 这个方法的作用是返回需要分配的设备列表
 func (m *ManagerImpl) devicesToAllocate(podUID, contName, resource string, required int, reusableDevices sets.String) (sets.String, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
@@ -780,6 +800,7 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 			m.UpdateAllocatedDevices()
 			allocatedDevicesUpdated = true
 		}
+		// Check if we have enough devices to allocate.
 		allocDevices, err := m.devicesToAllocate(podUID, contName, resource, needed, devicesToReuse[resource])
 		if err != nil {
 			return err
@@ -817,6 +838,7 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 		// TODO: refactor this part of code to just append a ContainerAllocationRequest
 		// in a passed in AllocateRequest pointer, and issues a single Allocate call per pod.
 		klog.V(3).InfoS("Making allocation request for device plugin", "devices", devs, "resourceName", resource)
+		// allocate作用是将pod中的容器的资源需求发送给device plugin，device plugin根据资源需求分配资源
 		resp, err := eI.e.allocate(devs)
 		metrics.DevicePluginAllocationDuration.WithLabelValues(resource).Observe(metrics.SinceInSeconds(startRPCTime))
 		if err != nil {

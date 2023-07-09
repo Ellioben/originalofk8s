@@ -44,6 +44,7 @@ package cache
 // registers at foo.com/foo-1.9.9
 //
 // DeRegistration: When ReRegistration happens only the deletion of the new socket will trigger a DeRegister call
+// 这个接口是给pluginwatcher API的客户端使用的，需要实现这个接口才能消费插件
 type PluginHandler interface {
 	// Validate returns an error if the information provided by
 	// the potential plugin is erroneous (unsupported version, ...)

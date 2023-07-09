@@ -33,6 +33,10 @@ import (
 // 2. resource name does not have "requests." prefix,
 // to avoid confusion with the convention in quota
 // 3. it satisfies the rules in IsQualifiedName() after converted into quota resource name
+// 校验资源名称是否合法，
+// 1. 资源名称不在默认命名空间中
+// 2. 资源名称不以"requests."开头，避免与配额中的约定混淆
+// 3. 资源名称转换为配额资源名称后，满足IsQualifiedName()中的规则
 func IsExtendedResourceName(name v1.ResourceName) bool {
 	if IsNativeResource(name) || strings.HasPrefix(string(name), v1.DefaultResourceRequestsPrefix) {
 		return false

@@ -99,6 +99,7 @@ func (e *endpointImpl) getPreferredAllocation(available, mustInclude []string, s
 }
 
 // allocate issues Allocate gRPC call to the device plugin.
+// allocate底层调用的是gRPC的Allocate方法
 func (e *endpointImpl) allocate(devs []string) (*pluginapi.AllocateResponse, error) {
 	if e.isStopped() {
 		return nil, fmt.Errorf(errEndpointStopped, e)

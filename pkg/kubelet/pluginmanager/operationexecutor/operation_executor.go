@@ -97,6 +97,7 @@ func (oe *operationExecutor) RegisterPlugin(
 	timestamp time.Time,
 	pluginHandlers map[string]cache.PluginHandler,
 	actualStateOfWorld ActualStateOfWorldUpdater) error {
+	//GenerateRegisterPluginFunc方法返回一个函数，这个函数的作用是将pluginHandlers中的插件注册到socketPath中
 	generatedOperation :=
 		oe.operationGenerator.GenerateRegisterPluginFunc(socketPath, timestamp, pluginHandlers, actualStateOfWorld)
 

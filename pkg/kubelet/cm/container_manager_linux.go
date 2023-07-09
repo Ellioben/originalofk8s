@@ -19,6 +19,8 @@ limitations under the License.
 
 package cm
 
+//container Manager，将不同的资源管理器集成到一起，包括cpu、内存、设备、拓扑、pid等，new出对应的管理器，交给kubelet对应的Manager包去管理
+
 import (
 	"bytes"
 	"context"

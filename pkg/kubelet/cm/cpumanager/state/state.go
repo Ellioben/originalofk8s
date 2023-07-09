@@ -16,6 +16,7 @@ limitations under the License.
 
 package state
 
+//主要是getCPUSet和SetCpuSet
 import (
 	"k8s.io/utils/cpuset"
 )

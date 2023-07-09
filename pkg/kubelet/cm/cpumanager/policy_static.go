@@ -286,6 +286,13 @@ func (p *staticPolicy) updateCPUsToReuse(pod *v1.Pod, container *v1.Container, c
 	p.cpusToReuse[string(pod.UID)] = p.cpusToReuse[string(pod.UID)].Difference(cset)
 }
 
+//Allocate方法是	staticPolicy的核心方法，它根据pod和container的需求，分配cpu资源
+//Allocate方法的实现逻辑如下：
+//1.首先判断container是否需要独占cpu资源，如果不需要，则直接返回nil
+//2.如果需要独占cpu资源，则根据pod和container的需求，分配cpu资源
+//3.如果分配失败，则返回错误
+//4.如果分配成功，则更新state中的defaultCpuSet和assignments
+//
 func (p *staticPolicy) Allocate(s state.State, pod *v1.Pod, container *v1.Container) (rerr error) {
 	numCPUs := p.guaranteedCPUs(pod, container)
 	if numCPUs == 0 {
@@ -345,11 +352,13 @@ func (p *staticPolicy) Allocate(s state.State, pod *v1.Pod, container *v1.Contai
 	klog.InfoS("Topology Affinity", "pod", klog.KObj(pod), "containerName", container.Name, "affinity", hint)
 
 	// Allocate CPUs according to the NUMA affinity contained in the hint.
+	// 这里是分配cpu的核心逻辑
 	cpuset, err := p.allocateCPUs(s, numCPUs, hint.NUMANodeAffinity, p.cpusToReuse[string(pod.UID)])
 	if err != nil {
 		klog.ErrorS(err, "Unable to allocate CPUs", "pod", klog.KObj(pod), "containerName", container.Name, "numCPUs", numCPUs)
 		return err
 	}
+	// 更新pod的cpuset
 	s.SetCPUSet(string(pod.UID), container.Name, cpuset)
 	p.updateCPUsToReuse(pod, container, cpuset)
 
@@ -381,6 +390,7 @@ func (p *staticPolicy) RemoveContainer(s state.State, podUID string, containerNa
 	return nil
 }
 
+//这个方法的逻辑是，先从hint中获取到numa节点的亲和性，然后从可用的cpu中获取到对应的numa节点的cpu，然后从这些cpu中获取到对应的cpu
 func (p *staticPolicy) allocateCPUs(s state.State, numCPUs int, numaAffinity bitmask.BitMask, reusableCPUs cpuset.CPUSet) (cpuset.CPUSet, error) {
 	klog.InfoS("AllocateCPUs", "numCPUs", numCPUs, "socket", numaAffinity)
 
@@ -388,6 +398,7 @@ func (p *staticPolicy) allocateCPUs(s state.State, numCPUs int, numaAffinity bit
 
 	// If there are aligned CPUs in numaAffinity, attempt to take those first.
 	result := cpuset.New()
+	// 设置亲和性后（尽量一个numa），走的的逻辑
 	if numaAffinity != nil {
 		alignedCPUs := p.getAlignedCPUs(numaAffinity, allocatableCPUs)
 
@@ -395,7 +406,7 @@ func (p *staticPolicy) allocateCPUs(s state.State, numCPUs int, numaAffinity bit
 		if numCPUs < numAlignedToAlloc {
 			numAlignedToAlloc = numCPUs
 		}
-
+		//	//CPU Manager为满足条件的Container分配指定的CPUs时,会尽量按照CPU Topology来分配,也就是考虑CPU Affinity
 		alignedCPUs, err := p.takeByTopology(alignedCPUs, numAlignedToAlloc)
 		if err != nil {
 			return cpuset.New(), err
@@ -405,6 +416,7 @@ func (p *staticPolicy) allocateCPUs(s state.State, numCPUs int, numaAffinity bit
 	}
 
 	// Get any remaining CPUs from what's leftover after attempting to grab aligned ones.
+	//CPU Manager为满足条件的Container分配指定的CPUs时,会尽量按照CPU Topology来分配
 	remainingCPUs, err := p.takeByTopology(allocatableCPUs.Difference(result), numCPUs-result.Size())
 	if err != nil {
 		return cpuset.New(), err
@@ -418,6 +430,7 @@ func (p *staticPolicy) allocateCPUs(s state.State, numCPUs int, numaAffinity bit
 	return result, nil
 }
 
+//guaranteedCPUs方法是staticPolicy的方法，用于获取pod的guaranteed的cpu数量
 func (p *staticPolicy) guaranteedCPUs(pod *v1.Pod, container *v1.Container) int {
 	if v1qos.GetPodQOS(pod) != v1.PodQOSGuaranteed {
 		return 0

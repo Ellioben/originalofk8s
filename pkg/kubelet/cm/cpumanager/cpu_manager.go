@@ -402,6 +402,10 @@ func (m *manager) removeStaleState() {
 }
 
 func (m *manager) reconcileState() (success []reconciledContainer, failure []reconciledContainer) {
+
+	//找到containerlD
+	//获取这个container需要绑定的cpuset
+	//更新这个container
 	ctx := context.Background()
 	success = []reconciledContainer{}
 	failure = []reconciledContainer{}

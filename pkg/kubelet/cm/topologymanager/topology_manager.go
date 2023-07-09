@@ -156,6 +156,10 @@ func NewManager(topology []cadvisorapi.Node, topologyPolicyName string, topology
 	var policy Policy
 	switch topologyPolicyName {
 
+	// PolicyNone is a special policy that does not enforce any topology
+	//none 策略显式地启用现有的默认 CPU 亲和方案，不提供操作系统调度器默认行为之外的亲和性策略通过 CFS 配额来实现 Guaranteed pods 和 Burstable pods 的 CPU 使用限制
+	//可以看到policy_none的所有方法都是nil，位置
+	//kubernetes\kubernetes\pkg\kubelet\cm\cpumanager\policy_none.go
 	case PolicyNone:
 		policy = NewNonePolicy()
 

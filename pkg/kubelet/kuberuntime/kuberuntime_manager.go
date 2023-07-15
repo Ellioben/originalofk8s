@@ -171,9 +171,12 @@ type kubeGenericRuntimeManager struct {
 }
 
 // KubeGenericRuntime is a interface contains interfaces for container runtime and command.
+//这个接口是kubelet的核心，它定义了容器运行时的接口，包括容器的创建、删除、启动、停止、暂停、恢复、容器的状态、容器的日志、容器的进程、容器的端口映射、容器的资源限制、容器的
 type KubeGenericRuntime interface {
 	kubecontainer.Runtime
+	//StreamingRuntime类型是
 	kubecontainer.StreamingRuntime
+	//CommandRunner
 	kubecontainer.CommandRunner
 }
 

@@ -66,6 +66,7 @@ type ImageStats struct {
 // Runtime interface defines the interfaces that should be implemented
 // by a container runtime.
 // Thread safety is required from implementations of this interface.
+//在同一个文件中可以看到ImageService 的接口 全都是围绕镜像服务的
 type Runtime interface {
 	// Type returns the type of the container runtime.
 	Type() string
@@ -115,6 +116,7 @@ type Runtime interface {
 	// DeleteContainer deletes a container. If the container is still running, an error is returned.
 	DeleteContainer(ctx context.Context, containerID ContainerID) error
 	// ImageService provides methods to image-related methods.
+	//ImageService的作用是提供镜像相关的方法
 	ImageService
 	// UpdatePodCIDR sends a new podCIDR to the runtime.
 	// This method just proxies a new runtimeConfig with the updated
@@ -138,6 +140,8 @@ type Runtime interface {
 // StreamingRuntime is the interface implemented by runtimes that handle the serving of the
 // streaming calls (exec/attach/port-forward) themselves. In this case, Kubelet should redirect to
 // the runtime server.
+//- 追踪可以得知都是 和容器交互的 stream api
+//- 比如Getexec就是 kubectl exec 所用到的接口
 type StreamingRuntime interface {
 	GetExec(ctx context.Context, id ContainerID, cmd []string, stdin, stdout, stderr, tty bool) (*url.URL, error)
 	GetAttach(ctx context.Context, id ContainerID, stdin, stdout, stderr, tty bool) (*url.URL, error)
@@ -166,6 +170,7 @@ type Attacher interface {
 }
 
 // CommandRunner interface allows to run command in a container.
+//其中就一个RunInContainer方法，代表在指定容器中执行cmd，超时时间为timeout
 type CommandRunner interface {
 	// RunInContainer synchronously executes the command in the container, and returns the output.
 	// If the command completes with a non-0 exit code, a k8s.io/utils/exec.ExitError will be returned.

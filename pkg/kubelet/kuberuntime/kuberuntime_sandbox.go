@@ -38,7 +38,16 @@ import (
 )
 
 // createPodSandbox creates a pod sandbox and returns (podSandBoxID, message, error).
+//创建podSandbox步骤：
+//1.生成podSandboxConfig
+//2.创建pod日志目录
+//3.调用runtimeService.RunPodSandbox创建podSandbox
+//4.返回podSandboxID
 func (m *kubeGenericRuntimeManager) createPodSandbox(ctx context.Context, pod *v1.Pod, attempt uint32) (string, string, error) {
+	// Generate pod sandbox config的作用是生成podSandboxConfig，podSandboxConfig是一个runtimeapi.PodSandboxConfig类型的结构体，
+	//它包含了pod的一些信息，比如pod的namespace、pod的id、pod的ip等等
+	//PodSandboxConfig 是发往remote runtime 的pb接口字段 ，
+	//位置 D:\go_path\src\github.com\kubernetes\kubernetes\vendor\k8s.io\cri-api\pkg\apis\runtime\v1alpha2\api.pb.go
 	podSandboxConfig, err := m.generatePodSandboxConfig(pod, attempt)
 	if err != nil {
 		message := fmt.Sprintf("Failed to generate sandbox config for pod %q: %v", format.Pod(pod), err)
@@ -47,6 +56,8 @@ func (m *kubeGenericRuntimeManager) createPodSandbox(ctx context.Context, pod *v
 	}
 
 	// Create pod logs directory
+	//创建pod日志目录
+	//log： /var/log/pods/<ns>_<pod_name>/<pod_id>
 	err = m.osInterface.MkdirAll(podSandboxConfig.LogDirectory, 0755)
 	if err != nil {
 		message := fmt.Sprintf("Failed to create log directory for pod %q: %v", format.Pod(pod), err)
@@ -65,7 +76,7 @@ func (m *kubeGenericRuntimeManager) createPodSandbox(ctx context.Context, pod *v
 			klog.V(2).InfoS("Running pod with runtime handler", "pod", klog.KObj(pod), "runtimeHandler", runtimeHandler)
 		}
 	}
-
+	//RunPodSandbox是调用runtimeService.RunPodSandbox创建podSandbox
 	podSandBoxID, err := m.runtimeService.RunPodSandbox(ctx, podSandboxConfig, runtimeHandler)
 	if err != nil {
 		message := fmt.Sprintf("Failed to create sandbox for pod %q: %v", format.Pod(pod), err)
@@ -81,6 +92,8 @@ func (m *kubeGenericRuntimeManager) generatePodSandboxConfig(pod *v1.Pod, attemp
 	// TODO: deprecating podsandbox resource requirements in favor of the pod level cgroup
 	// Refer https://github.com/kubernetes/kubernetes/issues/29871
 	podUID := string(pod.UID)
+	//PodSandboxConfig 是发往remote runtime 的pb接口字段 ，
+	//位置 D:\go_path\src\github.com\kubernetes\kubernetes\vendor\k8s.io\cri-api\pkg\apis\runtime\v1alpha2\api.pb.go
 	podSandboxConfig := &runtimeapi.PodSandboxConfig{
 		Metadata: &runtimeapi.PodSandboxMetadata{
 			Name:      pod.Name,
@@ -91,13 +104,14 @@ func (m *kubeGenericRuntimeManager) generatePodSandboxConfig(pod *v1.Pod, attemp
 		Labels:      newPodLabels(pod),
 		Annotations: newPodAnnotations(pod),
 	}
-
+	// 获取pod的ip地址
 	dnsConfig, err := m.runtimeHelper.GetPodDNS(pod)
 	if err != nil {
 		return nil, err
 	}
 	podSandboxConfig.DnsConfig = dnsConfig
 
+	//非hostNetwork模式下，pod的hostname是pod的name，否则是pod的ip
 	if !kubecontainer.IsHostNetworkPod(pod) {
 		// TODO: Add domain support in new runtime interface
 		podHostname, podDomain, err := m.runtimeHelper.GeneratePodHostNameAndDomain(pod)
@@ -123,6 +137,8 @@ func (m *kubeGenericRuntimeManager) generatePodSandboxConfig(pod *v1.Pod, attemp
 			hostPort := int32(port.HostPort)
 			containerPort := int32(port.ContainerPort)
 			protocol := toRuntimeProtocol(port.Protocol)
+			//设置容器的端口映射
+			// -oyaml中的ports标签内容
 			portMappings = append(portMappings, &runtimeapi.PortMapping{
 				HostIp:        port.HostIP,
 				HostPort:      hostPort,
@@ -165,6 +181,8 @@ func (m *kubeGenericRuntimeManager) generatePodSandboxLinuxConfig(pod *v1.Pod) (
 	cgroupParent := m.runtimeHelper.GetPodCgroupParent(pod)
 	lc := &runtimeapi.LinuxPodSandboxConfig{
 		CgroupParent: cgroupParent,
+		//	-oyaml中的securityContext标签内容
+		// 这里是linux的安全上下文
 		SecurityContext: &runtimeapi.LinuxSandboxSecurityContext{
 			Privileged: kubecontainer.HasPrivilegedContainer(pod),
 

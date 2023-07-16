@@ -174,6 +174,7 @@ func (r *remoteRuntimeService) versionV1(ctx context.Context, apiVersion string)
 
 // RunPodSandbox creates and starts a pod-level sandbox. Runtimes should ensure
 // the sandbox is in ready state.
+//这个方法是创建一个pod级别的沙箱，这个沙箱是容器运行时的一个概念，这个沙箱是一个容器的集合
 func (r *remoteRuntimeService) RunPodSandbox(ctx context.Context, config *runtimeapi.PodSandboxConfig, runtimeHandler string) (string, error) {
 	// Use 2 times longer timeout for sandbox operation (4 mins by default)
 	// TODO: Make the pod sandbox timeout configurable.
@@ -184,6 +185,7 @@ func (r *remoteRuntimeService) RunPodSandbox(ctx context.Context, config *runtim
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
+	//RunPodSandbox是调用容器运行时的RunPodSandbox方法，这个方法是创建一个pod级别的沙箱，这个沙箱是容器运行时的一个概念，这个沙箱是一个容器的集合
 	resp, err := r.runtimeClient.RunPodSandbox(ctx, &runtimeapi.RunPodSandboxRequest{
 		Config:         config,
 		RuntimeHandler: runtimeHandler,

@@ -160,7 +160,7 @@ func (c *Configurer) formDNSConfigFitsLimits(dnsConfig *runtimeapi.DNSConfig, po
 	dnsConfig.Searches = c.formDNSSearchFitsLimits(dnsConfig.Searches, pod)
 	return dnsConfig
 }
-
+//获取主机的dns配置
 func (c *Configurer) generateSearchesForDNSClusterFirst(hostSearch []string, pod *v1.Pod) []string {
 	if c.ClusterDomain == "" {
 		return hostSearch
@@ -299,7 +299,7 @@ func getDNSConfig(resolverConfigFile string) (*runtimeapi.DNSConfig, error) {
 		Options:  hostOptions,
 	}, nil
 }
-
+// getPodDNSType作用是根据pod的dns策略，返回podDNSType类型
 func getPodDNSType(pod *v1.Pod) (podDNSType, error) {
 	dnsPolicy := pod.Spec.DNSPolicy
 	switch dnsPolicy {
@@ -382,12 +382,22 @@ func appendDNSConfig(existingDNSConfig *runtimeapi.DNSConfig, dnsConfig *v1.PodD
 }
 
 // GetPodDNS returns DNS settings for the pod.
+// 获取pod的DNS设置步骤：
+// 1. 从kubelet的配置文件中获取DNS配置
+// 2. 从pod的spec中获取DNS配置
+// 3. 从pod的spec中获取DNS策略
+// 4. 根据DNS策略获取DNS设置
+// 5. 根据DNS设置获取DNS配置
+// 6. 将DNS配置与DNS设置合并
+// 7. 返回DNS配置
 func (c *Configurer) GetPodDNS(pod *v1.Pod) (*runtimeapi.DNSConfig, error) {
+	// 从主机的配置文件中获取DNS配置etc/resolv.conf
 	dnsConfig, err := c.getHostDNSConfig(c.ResolverConfig)
 	if err != nil {
 		return nil, err
 	}
 
+	//获取pod的DNS类型
 	dnsType, err := getPodDNSType(pod)
 	if err != nil {
 		klog.ErrorS(err, "Failed to get DNS type for pod. Falling back to DNSClusterFirst policy.", "pod", klog.KObj(pod))
@@ -408,6 +418,7 @@ func (c *Configurer) GetPodDNS(pod *v1.Pod) (*runtimeapi.DNSConfig, error) {
 			for _, ip := range c.clusterDNS {
 				dnsConfig.Servers = append(dnsConfig.Servers, ip.String())
 			}
+			// generateSearchesForDNSClusterFirst 作用是将pod的namespace和cluster.local添加到pod的searches中
 			dnsConfig.Searches = c.generateSearchesForDNSClusterFirst(dnsConfig.Searches, pod)
 			dnsConfig.Options = defaultDNSOptions
 			break
@@ -418,6 +429,7 @@ func (c *Configurer) GetPodDNS(pod *v1.Pod) (*runtimeapi.DNSConfig, error) {
 		c.recorder.Eventf(pod, v1.EventTypeWarning, "MissingClusterDNS", "pod: %q. %s", format.Pod(pod), nodeErrorMsg)
 		// Fallback to DNSDefault.
 		fallthrough
+	// 如果是podDNSDefault类型，那么就使用默认的DNS配置
 	case podDNSHost:
 		// When the kubelet --resolv-conf flag is set to the empty string, use
 		// DNS settings that override the docker default (which is to use
@@ -462,10 +474,10 @@ func (c *Configurer) SetupDNSinContainerizedMounter(mounterPath string) {
 			defer f.Close()
 			_, hostSearch, _, err := parseResolvConf(f)
 			if err != nil {
-				klog.ErrorS(err, "Error for parsing the resolv.conf file")
+				klog.ErrorS(err, "  for parsing the resolv.conf file")
 			} else {
 				dnsString = dnsString + "search"
-				for _, search := range hostSearch {
+				for _, search := range   {
 					dnsString = dnsString + fmt.Sprintf(" %s", search)
 				}
 				dnsString = dnsString + "\n"

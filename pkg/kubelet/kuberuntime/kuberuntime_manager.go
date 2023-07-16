@@ -1013,6 +1013,15 @@ func (m *kubeGenericRuntimeManager) computePodActions(ctx context.Context, pod *
 //  6. Create init containers.
 //  7. Resize running containers (if InPlacePodVerticalScaling==true)
 //  8. Create normal containers.
+//这个方法是kubelet的核心方法，用于同步pod的状态，包括创建、删除、更新pod的容器
+//	1. 计算pod的sandbox和容器的变化
+//	2. 如果需要，杀死pod的sandbox
+//	3. 杀死任何不应该运行的容器
+//	4. 如果需要，创建sandbox
+//	5. 创建临时容器
+//	6. 创建init容器
+//	7. 调整运行中的容器大小（如果InPlacePodVerticalScaling==true）
+//	8. 创建普通容器
 func (m *kubeGenericRuntimeManager) SyncPod(ctx context.Context, pod *v1.Pod, podStatus *kubecontainer.PodStatus, pullSecrets []v1.Secret, backOff *flowcontrol.Backoff) (result kubecontainer.PodSyncResult) {
 	// Step 1: Compute sandbox and container changes.
 	podContainerChanges := m.computePodActions(ctx, pod, podStatus)
@@ -1118,6 +1127,7 @@ func (m *kubeGenericRuntimeManager) SyncPod(ctx context.Context, pod *v1.Pod, po
 			//
 			// SyncPod can still be running when we get here, which
 			// means the PodWorker has not acked the deletion.
+			//如果创建pod过程中又删除了pod，那么这个错误不重要
 			if m.podStateProvider.IsPodTerminationRequested(pod.UID) {
 				klog.V(4).InfoS("Pod was deleted and sandbox failed to be created", "pod", klog.KObj(pod), "podUID", pod.UID)
 				return

@@ -181,6 +181,8 @@ type KubeGenericRuntime interface {
 }
 
 // NewKubeGenericRuntimeManager creates a new kubeGenericRuntimeManager
+//NewKubeGenericRuntimeManager创建一个kubeGenericRuntimeManager
+//kubeGenericRuntimeManager	的作用是管理容器的生命周期，包括容器的创建、删除、启动、停止、暂停、恢复、容器的状态、容器的日志、容器的进程、容器的端口映射、容器的资源限制、容器的
 func NewKubeGenericRuntimeManager(
 	recorder record.EventRecorder,
 	livenessManager proberesults.Manager,

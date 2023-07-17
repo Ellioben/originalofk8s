@@ -863,6 +863,7 @@ func findNextInitContainerToRun(pod *v1.Pod, podStatus *kubecontainer.PodStatus)
 	// have been executed at some point in the past.  However, they could have been removed
 	// from the container runtime now, and if we proceed, it would appear as if they
 	// never ran and will re-execute improperly.
+	// 遍历pod的所有容器，如果有一个容器的状态是running，那么说明所有的init容器都已经执行过了
 	for i := range pod.Spec.Containers {
 		container := &pod.Spec.Containers[i]
 		status := podStatus.FindContainerStatusByName(container.Name)
@@ -872,6 +873,7 @@ func findNextInitContainerToRun(pod *v1.Pod, podStatus *kubecontainer.PodStatus)
 	}
 
 	// If there are failed containers, return the status of the last failed one.
+	// 倒着遍历init容器，如果有一个容器的状态是failed，那么返回这个容器的状态
 	for i := len(pod.Spec.InitContainers) - 1; i >= 0; i-- {
 		container := &pod.Spec.InitContainers[i]
 		status := podStatus.FindContainerStatusByName(container.Name)
@@ -881,6 +883,7 @@ func findNextInitContainerToRun(pod *v1.Pod, podStatus *kubecontainer.PodStatus)
 	}
 
 	// There are no failed containers now.
+	// 倒着遍历init容器，如果有一个容器的状态是running，那么说明所有的init容器都已经执行过了
 	for i := len(pod.Spec.InitContainers) - 1; i >= 0; i-- {
 		container := &pod.Spec.InitContainers[i]
 		status := podStatus.FindContainerStatusByName(container.Name)
@@ -889,10 +892,11 @@ func findNextInitContainerToRun(pod *v1.Pod, podStatus *kubecontainer.PodStatus)
 		}
 
 		// container is still running, return not done.
+		// 如果有一个容器的状态是running，那么说明所有的init容器都已经执行过了
 		if status.State == kubecontainer.ContainerStateRunning {
 			return nil, nil, false
 		}
-
+		// 最后一个容器的状态是exited，说明所有的init容器都已经执行过了
 		if status.State == kubecontainer.ContainerStateExited {
 			// all init containers successful
 			if i == (len(pod.Spec.InitContainers) - 1) {

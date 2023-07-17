@@ -852,6 +852,7 @@ func (m *kubeGenericRuntimeManager) computePodActions(ctx context.Context, pod *
 			containersToStart = append(containersToStart, idx)
 		}
 		// We should not create a sandbox for a Pod if initialization is done and there is no container to start.
+		//我们不应该为Pod创建一个沙箱，如果初始化完成并且没有容器启动。
 		if len(containersToStart) == 0 {
 			_, _, done := findNextInitContainerToRun(pod, podStatus)
 			if done {
@@ -1193,6 +1194,11 @@ func (m *kubeGenericRuntimeManager) SyncPod(ctx context.Context, pod *v1.Pod, po
 	// currently: "container", "init container" or "ephemeral container"
 	// metricLabel is the label used to describe this type of container in monitoring metrics.
 	// currently: "container", "init_container" or "ephemeral_container"
+	// 作用：创建容器
+	// 1. 创建容器
+	// 2. 启动容器
+	// 3. 检查容器状态
+	// 4. 检查容器是否在backoff中
 	start := func(ctx context.Context, typeName, metricLabel string, spec *startSpec) error {
 		startContainerResult := kubecontainer.NewSyncResult(kubecontainer.StartContainer, spec.container.Name)
 		result.AddSyncResult(startContainerResult)
@@ -1210,6 +1216,7 @@ func (m *kubeGenericRuntimeManager) SyncPod(ctx context.Context, pod *v1.Pod, po
 		}
 		klog.V(4).InfoS("Creating container in pod", "containerType", typeName, "container", spec.container, "pod", klog.KObj(pod))
 		// NOTE (aramase) podIPs are populated for single stack and dual stack clusters. Send only podIPs.
+		// startContainer方法中会调用createContainer方法创建容器
 		if msg, err := m.startContainer(ctx, podSandboxID, podSandboxConfig, spec, pod, podStatus, pullSecrets, podIP, podIPs); err != nil {
 			// startContainer() returns well-defined error codes that have reasonable cardinality for metrics and are
 			// useful to cluster administrators to distinguish "server errors" from "user errors".
@@ -1236,11 +1243,15 @@ func (m *kubeGenericRuntimeManager) SyncPod(ctx context.Context, pod *v1.Pod, po
 	// These are started "prior" to init containers to allow running ephemeral containers even when there
 	// are errors starting an init container. In practice init containers will start first since ephemeral
 	// containers cannot be specified on pod creation.
+	//第五步：启动临时容器
+	//启动临时容器 这些容器在初始化容器之前“启动，以允许运行临时容器，即使启动 init 容器时出错也是如此。
+	//实际上，init 容器将首先启动，因为在创建 Pod 时无法指定临时容器。
 	for _, idx := range podContainerChanges.EphemeralContainersToStart {
 		start(ctx, "ephemeral container", metrics.EphemeralContainer, ephemeralContainerStartSpec(&pod.Spec.EphemeralContainers[idx]))
 	}
 
 	// Step 6: start the init container.
+	//这个方法是获取下一个要启动的init容器
 	if container := podContainerChanges.NextInitContainerToStart; container != nil {
 		// Start the next init container.
 		if err := start(ctx, "init container", metrics.InitContainer, containerStartSpec(container)); err != nil {

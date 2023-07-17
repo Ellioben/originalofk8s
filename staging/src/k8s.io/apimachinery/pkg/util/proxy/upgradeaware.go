@@ -159,6 +159,7 @@ var MirrorRequest http.RoundTripper = onewayRoundTripper{}
 // NewUpgradeRequestRoundTripper takes two round trippers - one for the underlying TCP connection, and
 // one that is able to write headers to an HTTP request. The request rt is used to set the request headers
 // and that is written to the underlying connection rt.
+// 这个方法是用来处理升级请求的，比如websocket
 func NewUpgradeRequestRoundTripper(connection, request http.RoundTripper) UpgradeRequestRoundTripper {
 	return &upgradeRequestRoundTripper{
 		RoundTripper: connection,

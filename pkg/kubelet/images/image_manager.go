@@ -100,12 +100,14 @@ func (m *imageManager) logIt(ref *v1.ObjectReference, eventtype, event, prefix, 
 // (imageRef, error message, error).
 func (m *imageManager) EnsureImageExists(ctx context.Context, pod *v1.Pod, container *v1.Container, pullSecrets []v1.Secret, podSandboxConfig *runtimeapi.PodSandboxConfig) (string, string, error) {
 	logPrefix := fmt.Sprintf("%s/%s/%s", pod.Namespace, pod.Name, container.Image)
+	//获取pod的UID
 	ref, err := kubecontainer.GenerateContainerRef(pod, container)
 	if err != nil {
 		klog.ErrorS(err, "Couldn't make a ref to pod", "pod", klog.KObj(pod), "containerName", container.Name)
 	}
 
 	// If the image contains no tag or digest, a default tag should be applied.
+	// 检查镜像名称是否合法tag
 	image, err := applyDefaultImageTag(container.Image)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to apply default image tag %q: %v", container.Image, err)
@@ -125,6 +127,7 @@ func (m *imageManager) EnsureImageExists(ctx context.Context, pod *v1.Pod, conta
 		Image:       image,
 		Annotations: podAnnotations,
 	}
+	//获取远程获取镜像的引用
 	imageRef, err := m.imageService.GetImageRef(ctx, spec)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to inspect image %q: %v", container.Image, err)
@@ -144,6 +147,7 @@ func (m *imageManager) EnsureImageExists(ctx context.Context, pod *v1.Pod, conta
 		return "", msg, ErrImageNeverPull
 	}
 
+	//检查是否在backoff中，原理对时间进行判断，如果在backoff中，就不进行拉取镜像
 	backOffKey := fmt.Sprintf("%s_%s", pod.UID, container.Image)
 	if m.backOff.IsInBackOffSinceUpdate(backOffKey, m.backOff.Clock.Now()) {
 		msg := fmt.Sprintf("Back-off pulling image %q", container.Image)
@@ -154,6 +158,7 @@ func (m *imageManager) EnsureImageExists(ctx context.Context, pod *v1.Pod, conta
 	m.logIt(ref, v1.EventTypeNormal, events.PullingImage, logPrefix, fmt.Sprintf("Pulling image %q", container.Image), klog.Info)
 	startTime := time.Now()
 	pullChan := make(chan pullResult)
+	//拉取镜像
 	m.puller.pullImage(ctx, spec, pullSecrets, pullChan, podSandboxConfig)
 	imagePullResult := <-pullChan
 	if imagePullResult.err != nil {

@@ -160,6 +160,7 @@ func (c *Configurer) formDNSConfigFitsLimits(dnsConfig *runtimeapi.DNSConfig, po
 	dnsConfig.Searches = c.formDNSSearchFitsLimits(dnsConfig.Searches, pod)
 	return dnsConfig
 }
+
 //获取主机的dns配置
 func (c *Configurer) generateSearchesForDNSClusterFirst(hostSearch []string, pod *v1.Pod) []string {
 	if c.ClusterDomain == "" {
@@ -299,6 +300,7 @@ func getDNSConfig(resolverConfigFile string) (*runtimeapi.DNSConfig, error) {
 		Options:  hostOptions,
 	}, nil
 }
+
 // getPodDNSType作用是根据pod的dns策略，返回podDNSType类型
 func getPodDNSType(pod *v1.Pod) (podDNSType, error) {
 	dnsPolicy := pod.Spec.DNSPolicy
@@ -474,10 +476,10 @@ func (c *Configurer) SetupDNSinContainerizedMounter(mounterPath string) {
 			defer f.Close()
 			_, hostSearch, _, err := parseResolvConf(f)
 			if err != nil {
-				klog.ErrorS(err, "  for parsing the resolv.conf file")
+				klog.ErrorS(err, "Error for parsing the resolv.conf file")
 			} else {
 				dnsString = dnsString + "search"
-				for _, search := range   {
+				for _, search := range hostSearch {
 					dnsString = dnsString + fmt.Sprintf(" %s", search)
 				}
 				dnsString = dnsString + "\n"

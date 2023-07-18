@@ -35,11 +35,14 @@ const WaitForAPIServerSyncPeriod = 1 * time.Second
 
 // NewSourceApiserver creates a config source that watches and pulls from the apiserver.
 func NewSourceApiserver(c clientset.Interface, nodeName types.NodeName, nodeHasSynced func() bool, updates chan<- interface{}) {
+	// Watch for pods on this node.
+	// 遍历所有的pod，找到nodeName对应的pod
 	lw := cache.NewListWatchFromClient(c.CoreV1().RESTClient(), "pods", metav1.NamespaceAll, fields.OneTermEqualSelector("spec.nodeName", string(nodeName)))
 
 	// The Reflector responsible for watching pods at the apiserver should be run only after
 	// the node sync with the apiserver has completed.
 	klog.InfoS("Waiting for node sync before watching apiserver pods")
+	//开启线程，等待nodeHasSynced()返回true
 	go func() {
 		for {
 			if nodeHasSynced() {
@@ -63,6 +66,7 @@ func newSourceApiserverFromLW(lw cache.ListerWatcher, updates chan<- interface{}
 		}
 		updates <- kubetypes.PodUpdate{Pods: pods, Op: kubetypes.SET, Source: kubetypes.ApiserverSource}
 	}
+	// 将update的pod发送到updates
 	r := cache.NewReflector(lw, &v1.Pod{}, cache.NewUndeltaStore(send, cache.MetaNamespaceKeyFunc), 0)
 	go r.Run(wait.NeverStop)
 }

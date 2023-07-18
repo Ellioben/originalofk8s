@@ -230,6 +230,7 @@ type SyncHandler interface {
 type Option func(*Kubelet)
 
 // Bootstrap is a bootstrapping interface for kubelet, targets the initialization protocol
+// 这个接口定义了kubelet的初始化协议
 type Bootstrap interface {
 	GetConfiguration() kubeletconfiginternal.KubeletConfiguration
 	BirthCry()
@@ -288,6 +289,7 @@ func makePodSourceConfig(kubeCfg *kubeletconfiginternal.KubeletConfiguration, ku
 	}
 
 	// source of all configuration
+	//构建podConfig是kubelet的核心
 	cfg := config.NewPodConfig(config.PodConfigNotificationIncremental, kubeDeps.Recorder, kubeDeps.PodStartupLatencyTracker)
 
 	// TODO:  it needs to be replaced by a proper context in the future
@@ -296,15 +298,18 @@ func makePodSourceConfig(kubeCfg *kubeletconfiginternal.KubeletConfiguration, ku
 	// define file config source
 	if kubeCfg.StaticPodPath != "" {
 		klog.InfoS("Adding static pod path", "path", kubeCfg.StaticPodPath)
+		//
 		config.NewSourceFile(kubeCfg.StaticPodPath, nodeName, kubeCfg.FileCheckFrequency.Duration, cfg.Channel(ctx, kubetypes.FileSource))
 	}
 
 	// define url config source
 	if kubeCfg.StaticPodURL != "" {
 		klog.InfoS("Adding pod URL with HTTP header", "URL", kubeCfg.StaticPodURL, "header", manifestURLHeader)
+		//作用是从url中获取pod的配置
 		config.NewSourceURL(kubeCfg.StaticPodURL, manifestURLHeader, nodeName, kubeCfg.HTTPCheckFrequency.Duration, cfg.Channel(ctx, kubetypes.HTTPSource))
 	}
 
+	//添加apiserver pod source
 	if kubeDeps.KubeClient != nil {
 		klog.InfoS("Adding apiserver pod source")
 		config.NewSourceApiserver(kubeDeps.KubeClient, nodeName, nodeHasSynced, cfg.Channel(ctx, kubetypes.ApiserverSource))
@@ -2394,8 +2399,15 @@ func (kl *Kubelet) syncLoop(ctx context.Context, updates <-chan kubetypes.PodUpd
 //   - housekeepingCh: trigger cleanup of pods
 //   - health manager: sync pods that have failed or in which one or more
 //     containers have failed health checks
+// 这个函数是kubelet的主循环，负责处理各种事件，包括：
+// 1.  configCh:       从这个channel读取配置事件
+// 2.  handler:        用于处理pod的SyncHandler
+// 3.  syncCh:         从这个channel读取周期性的同步事件
+// 4.  housekeepingCh: 从这个channel读取housekeeping事件
+// 5.  plegCh:         从这个channel读取PLEG更新
 func (kl *Kubelet) syncLoopIteration(ctx context.Context, configCh <-chan kubetypes.PodUpdate, handler SyncHandler,
 	syncCh <-chan time.Time, housekeepingCh <-chan time.Time, plegCh <-chan *pleg.PodLifecycleEvent) bool {
+	//5个type，7个Manager
 	select {
 	case u, open := <-configCh:
 		// Update from a config source; dispatch it to the right handler

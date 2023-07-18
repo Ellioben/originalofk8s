@@ -75,7 +75,9 @@ type PodConfig struct {
 // of normalized updates to a pod configuration.
 func NewPodConfig(mode PodConfigNotificationMode, recorder record.EventRecorder, startupSLIObserver podStartupSLIObserver) *PodConfig {
 	updates := make(chan kubetypes.PodUpdate, 50)
+	// 处理update，生产端
 	storage := newPodStorage(updates, mode, recorder, startupSLIObserver)
+	// uodate的channl消费端
 	podConfig := &PodConfig{
 		pods:    storage,
 		mux:     config.NewMux(storage),
@@ -87,6 +89,7 @@ func NewPodConfig(mode PodConfigNotificationMode, recorder record.EventRecorder,
 
 // Channel creates or returns a config source channel.  The channel
 // only accepts PodUpdates
+// 作用是创建或者返回一个config source channel，这个channel只接受PodUpdates
 func (c *PodConfig) Channel(ctx context.Context, source string) chan<- interface{} {
 	c.sourcesLock.Lock()
 	defer c.sourcesLock.Unlock()
@@ -158,11 +161,14 @@ func newPodStorage(updates chan<- kubetypes.PodUpdate, mode PodConfigNotificatio
 // Merge normalizes a set of incoming changes from different sources into a map of all Pods
 // and ensures that redundant changes are filtered out, and then pushes zero or more minimal
 // updates onto the update channel.  Ensures that updates are delivered in order.
+//这个方法是核心方法，处理pod的增删改查
+//具体实现方式是：先将pod的增删改查操作，转换成增删改查的pod列表，然后将这些列表放到podUpdate中，最后将podUpdate放到updates channel中
 func (s *podStorage) Merge(source string, change interface{}) error {
 	s.updateLock.Lock()
 	defer s.updateLock.Unlock()
 
 	seenBefore := s.sourcesSeen.Has(source)
+	//
 	adds, updates, deletes, removes, reconciles := s.merge(source, change)
 	firstSet := !seenBefore && s.sourcesSeen.Has(source)
 

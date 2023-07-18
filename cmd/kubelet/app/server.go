@@ -1176,8 +1176,10 @@ func RunKubelet(kubeServer *options.KubeletServer, kubeDeps *kubelet.Dependencie
 	return nil
 }
 
+//startKubelet作用是启动kubelet
 func startKubelet(k kubelet.Bootstrap, podCfg *config.PodConfig, kubeCfg *kubeletconfiginternal.KubeletConfiguration, kubeDeps *kubelet.Dependencies, enableServer bool) {
 	// start the kubelet
+	//podCfg.Updates()是一个channel，用于接收pod的更新
 	go k.Run(podCfg.Updates())
 
 	// start the kubelet server

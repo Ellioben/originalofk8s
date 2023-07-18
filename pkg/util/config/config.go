@@ -63,6 +63,8 @@ func NewMux(merger Merger) *Mux {
 // source will return the same channel. This allows change and state based sources
 // to use the same channel. Different source names however will be treated as a
 // union.
+// 作用：返回一个channel，用于接收配置更新
+// 实现方式：每个source对应一个channel，多个source对应的channel会合并成一个channel
 func (m *Mux) ChannelWithContext(ctx context.Context, source string) chan interface{} {
 	if len(source) == 0 {
 		panic("Channel given an empty name")

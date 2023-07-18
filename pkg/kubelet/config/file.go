@@ -66,6 +66,7 @@ func NewSourceFile(path string, nodeName types.NodeName, period time.Duration, u
 
 	config := newSourceFile(path, nodeName, period, updates)
 	klog.V(1).InfoS("Watching path", "path", path)
+	// 作用是启动一个goroutine，这个goroutine会定时的读取path目录下的文件，然后将文件中的pod配置信息转换成Pod对象，然后将Pod对象放入到updates通道中
 	config.run()
 }
 
@@ -77,6 +78,8 @@ func newSourceFile(path string, nodeName types.NodeName, period time.Duration, u
 		}
 		updates <- kubetypes.PodUpdate{Pods: pods, Op: kubetypes.SET, Source: kubetypes.FileSource}
 	}
+	// send是一个函数，这个函数的作用是将Pod对象放入到updates通道中
+	// 触发add，add触发pushfuction，pushfunction触发send，send触发updates通道
 	store := cache.NewUndeltaStore(send, cache.MetaNamespaceKeyFunc)
 	return &sourceFile{
 		path:           path,
@@ -103,6 +106,7 @@ func (s *sourceFile) run() {
 				if err := s.listConfig(); err != nil {
 					klog.ErrorS(err, "Unable to read config path", "path", s.path)
 				}
+				// 监听event的文件变化
 			case e := <-s.watchEvents:
 				if err := s.consumeWatchEvent(e); err != nil {
 					klog.ErrorS(err, "Unable to process watch event")
@@ -111,6 +115,7 @@ func (s *sourceFile) run() {
 		}
 	}()
 
+	//开始监听path目录下的文件变化
 	s.startWatch()
 }
 
@@ -118,6 +123,7 @@ func (s *sourceFile) applyDefaults(pod *api.Pod, source string) error {
 	return applyDefaults(pod, source, true, s.nodeName)
 }
 
+//这个方法是在kubelet启动的时候调用的，用来读取pod的配置文件
 func (s *sourceFile) listConfig() error {
 	path := s.path
 	statInfo, err := os.Stat(path)
@@ -141,6 +147,7 @@ func (s *sourceFile) listConfig() error {
 			s.updates <- kubetypes.PodUpdate{Pods: pods, Op: kubetypes.SET, Source: kubetypes.FileSource}
 			return nil
 		}
+		// 作用是将pod的配置信息放入到store中
 		return s.replaceStore(pods...)
 
 	case statInfo.Mode().IsRegular():
@@ -148,6 +155,7 @@ func (s *sourceFile) listConfig() error {
 		if err != nil {
 			return err
 		}
+		// 作用是将pod的配置信息放入到store中
 		return s.replaceStore(pod)
 
 	default:

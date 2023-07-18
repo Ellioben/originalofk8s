@@ -66,6 +66,8 @@ func (s *sourceFile) startWatch() {
 	}, retryPeriod)
 }
 
+// 作用：监听文件变化，将文件变化的事件转换成pod的增删改事件
+// 方式：使用系统机制监控文件变化
 func (s *sourceFile) doWatch() error {
 	_, err := os.Stat(s.path)
 	if err != nil {
@@ -100,6 +102,8 @@ func (s *sourceFile) doWatch() error {
 	}
 }
 
+// 作用：将文件变化的事件转换成pod的增删改事件
+//snotify.Event是文件变化的事件（系统机监控），包含文件名和事件类型
 func (s *sourceFile) produceWatchEvent(e *fsnotify.Event) error {
 	// Ignore file start with dots
 	if strings.HasPrefix(filepath.Base(e.Name), ".") {

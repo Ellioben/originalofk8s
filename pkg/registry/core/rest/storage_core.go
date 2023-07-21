@@ -108,7 +108,7 @@ func (c LegacyRESTStorageProvider) NewLegacyRESTStorage(apiResourceConfigSource 
 		ParameterCodec:               legacyscheme.ParameterCodec,
 		NegotiatedSerializer:         legacyscheme.Codecs,
 	}
-
+	// 不同的资源对应不同的rest.Storage
 	podDisruptionClient, err := policyclient.NewForConfig(c.LoopbackClientConfig)
 	if err != nil {
 		return LegacyRESTStorage{}, genericapiserver.APIGroupInfo{}, err
@@ -300,7 +300,9 @@ func (c LegacyRESTStorageProvider) NewLegacyRESTStorage(apiResourceConfigSource 
 	}
 
 	storage := map[string]rest.Storage{}
+	//设置storage对应的资源
 	if resource := "pods"; apiResourceConfigSource.ResourceEnabled(corev1.SchemeGroupVersion.WithResource(resource)) {
+		// 从podStorage中获取对应的资源
 		storage[resource] = podStorage.Pod
 		storage[resource+"/attach"] = podStorage.Attach
 		storage[resource+"/status"] = podStorage.Status

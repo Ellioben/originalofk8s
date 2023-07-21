@@ -87,12 +87,14 @@ cluster's shared state through which all other components interact.`,
 
 		// stop printing usage when the command errors
 		SilenceUsage: true,
+		// 运行前的hook
 		PersistentPreRunE: func(*cobra.Command, []string) error {
 			// silence client-go warnings.
 			// kube-apiserver loopback clients should not log self-issued warnings.
 			rest.SetDefaultWarningHandler(rest.NoWarnings{})
 			return nil
 		},
+		// main
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verflag.PrintAndExitIfRequested()
 			fs := cmd.Flags()
@@ -116,6 +118,7 @@ cluster's shared state through which all other components interact.`,
 			}
 			// add feature enablement metrics
 			utilfeature.DefaultMutableFeatureGate.AddMetrics()
+			// >>>
 			return Run(completedOptions, genericapiserver.SetupSignalHandler())
 		},
 		Args: func(cmd *cobra.Command, args []string) error {
@@ -144,16 +147,19 @@ cluster's shared state through which all other components interact.`,
 }
 
 // Run runs the specified APIServer.  This should never exit.
+// 这里包含2个参数，前者是参数completedOptions，后者是一个stopCh <-chan struct{},阻塞这个进程
 func Run(opts options.CompletedOptions, stopCh <-chan struct{}) error {
 	// To help debugging, immediately log version
 	klog.Infof("Version: %+v", version.Get())
 
 	klog.InfoS("Golang settings", "GOGC", os.Getenv("GOGC"), "GOMAXPROCS", os.Getenv("GOMAXPROCS"), "GOTRACEBACK", os.Getenv("GOTRACEBACK"))
 
+	// 获取不同类型的config，// 1. 从文件中读取配置，2. 从命令行中读取配置
 	config, err := NewConfig(opts)
 	if err != nil {
 		return err
 	}
+	// Complete 的作用是将config中的各种配置项进行合并，比如将默认配置项和命令行配置项进行合并
 	completed, err := config.Complete()
 	if err != nil {
 		return err
@@ -174,18 +180,20 @@ func Run(opts options.CompletedOptions, stopCh <-chan struct{}) error {
 // CreateServerChain creates the apiservers connected via delegation.
 func CreateServerChain(config CompletedConfig) (*aggregatorapiserver.APIAggregator, error) {
 	notFoundHandler := notfoundhandler.New(config.ControlPlane.GenericConfig.Serializer, genericapifilters.NoMuxAndDiscoveryIncompleteKey)
+	// api扩展相关的服务api
 	apiExtensionsServer, err := config.ApiExtensions.New(genericapiserver.NewEmptyDelegateWithCustomHandler(notFoundHandler))
 	if err != nil {
 		return nil, err
 	}
 	crdAPIEnabled := config.ApiExtensions.GenericConfig.MergedResourceConfig.ResourceEnabled(apiextensionsv1.SchemeGroupVersion.WithResource("customresourcedefinitions"))
-
+	//  主要的服务
 	kubeAPIServer, err := config.ControlPlane.New(apiExtensionsServer.GenericAPIServer)
 	if err != nil {
 		return nil, err
 	}
 
 	// aggregator comes last in the chain
+	// 聚合config
 	aggregatorServer, err := createAggregatorServer(config.Aggregator, kubeAPIServer.GenericAPIServer, apiExtensionsServer.Informers, crdAPIEnabled)
 	if err != nil {
 		// we don't need special handling for innerStopCh because the aggregator server doesn't create any go routines
@@ -208,6 +216,12 @@ func CreateProxyTransport() *http.Transport {
 }
 
 // CreateKubeAPIServerConfig creates all the resources for running the API server, but runs none of them
+// 作用：创建所有运行API server的资源，但是不运行他们
+// 1. 创建proxyTransport
+// 2. 创建genericConfig, versionedInformers, storageFactory
+// 3. 创建config
+// 4. 创建serviceResolver
+// 5. 创建admission.PluginInitializer
 func CreateKubeAPIServerConfig(opts options.CompletedOptions) (
 	*controlplane.Config,
 	aggregatorapiserver.ServiceResolver,
@@ -216,6 +230,7 @@ func CreateKubeAPIServerConfig(opts options.CompletedOptions) (
 ) {
 	proxyTransport := CreateProxyTransport()
 
+	//BuildGenericConfig是一个很重要的函数，它的作用是创建genericConfig, versionedInformers, storageFactory（三种config共性的权限校验）
 	genericConfig, versionedInformers, storageFactory, err := controlplaneapiserver.BuildGenericConfig(
 		opts.CompletedOptions,
 		[]*runtime.Scheme{legacyscheme.Scheme, extensionsapiserver.Scheme, aggregatorscheme.Scheme},

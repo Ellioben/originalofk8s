@@ -665,6 +665,9 @@ func (c *RecommendedConfig) Complete() CompletedConfig {
 // New creates a new server which logically combines the handling chain with the passed server.
 // name is used to differentiate for logging. The handler chain in particular can be difficult as it starts delegating.
 // delegationTarget may not be nil.
+//创建一个新服务器，该服务器在逻辑上将处理链与传递的服务器组合在一起。
+//名称用于区分日志记录。
+//特别是处理程序链在开始委派时可能很困难。委派目标可能不为零。
 func (c completedConfig) New(name string, delegationTarget DelegationTarget) (*GenericAPIServer, error) {
 	if c.Serializer == nil {
 		return nil, fmt.Errorf("Genericapiserver.New() called with config.Serializer == nil")
@@ -684,7 +687,7 @@ func (c completedConfig) New(name string, delegationTarget DelegationTarget) (*G
 	if c.DebugSocketPath != "" {
 		debugSocket = routes.NewDebugSocket(c.DebugSocketPath)
 	}
-
+	// 这个是真正的handler
 	apiServerHandler := NewAPIServerHandler(name, c.Serializer, handlerChainBuilder, delegationTarget.UnprotectedHandler())
 
 	s := &GenericAPIServer{
@@ -854,7 +857,7 @@ func (c completedConfig) New(name string, delegationTarget DelegationTarget) (*G
 			}
 		}
 	}
-
+	// 健康监测
 	for _, delegateCheck := range delegationTarget.HealthzChecks() {
 		skip := false
 		for _, existingCheck := range c.HealthzChecks {
@@ -876,6 +879,7 @@ func (c completedConfig) New(name string, delegationTarget DelegationTarget) (*G
 
 	s.listedPathProvider = routes.ListedPathProviders{s.listedPathProvider, delegationTarget}
 
+	// install the API
 	installAPI(s, c.Config)
 
 	// use the UnprotectedHandler from the delegation target to ensure that we don't attempt to double authenticator, authorize,

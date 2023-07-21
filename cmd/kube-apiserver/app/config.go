@@ -53,6 +53,7 @@ type CompletedConfig struct {
 	*completedConfig
 }
 
+// Complete 作用：将Config结构体中的各个字段进行初始化
 func (c *Config) Complete() (CompletedConfig, error) {
 	return CompletedConfig{&completedConfig{
 		Options: c.Options,

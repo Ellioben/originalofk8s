@@ -77,6 +77,7 @@ func NewStorage(optsGetter generic.RESTOptionsGetter, k client.ConnectionInfoGet
 		DefaultQualifiedResource:  api.Resource("pods"),
 		SingularQualifiedResource: api.Resource("pod"),
 
+		// 创建、更新、删除、重置字段策略
 		CreateStrategy:      registrypod.Strategy,
 		UpdateStrategy:      registrypod.Strategy,
 		DeleteStrategy:      registrypod.Strategy,

@@ -52,12 +52,14 @@ type AdmissionOptions struct {
 //	that can be used by servers that don't care about admission chain.
 //	Servers that do care can overwrite/append that field after creation.
 func NewAdmissionOptions() *AdmissionOptions {
+	// 注册所有的 Admission 插件
 	options := genericoptions.NewAdmissionOptions()
 	// register all admission plugins
 	RegisterAllAdmissionPlugins(options.Plugins)
 	// set RecommendedPluginOrder
 	options.RecommendedPluginOrder = AllOrderedPlugins
 	// set DefaultOffPlugins
+	//设置默认关闭的插件
 	options.DefaultOffPlugins = DefaultOffAdmissionPlugins()
 
 	return &AdmissionOptions{

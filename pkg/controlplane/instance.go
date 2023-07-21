@@ -220,8 +220,10 @@ type Config struct {
 }
 
 type completedConfig struct {
+	// 通用型的config
 	GenericConfig genericapiserver.CompletedConfig
-	ExtraConfig   *ExtraConfig
+	//扩展型的config
+	ExtraConfig *ExtraConfig
 }
 
 // CompletedConfig embeds a private pointer that cannot be instantiated outside of this package
@@ -344,6 +346,7 @@ func (c *Config) Complete() CompletedConfig {
 // Certain config fields will be set to a default value if unset.
 // Certain config fields must be specified, including:
 // KubeletClientConfig
+// 这个方法是创建一个master的实例，这个方法是在apiserver启动的时候调用的
 func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget) (*Instance, error) {
 	if reflect.DeepEqual(c.ExtraConfig.KubeletClientConfig, kubeletclient.KubeletClientConfig{}) {
 		return nil, fmt.Errorf("Master.New() called with empty config.KubeletClientConfig")
@@ -388,14 +391,14 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 		routes.NewOpenIDMetadataServer(md.ConfigJSON, md.PublicKeysetJSON).
 			Install(s.Handler.GoRestfulContainer)
 	}
-
+	// 返回一个master的实例
 	m := &Instance{
 		GenericAPIServer:          s,
 		ClusterAuthenticationInfo: c.ExtraConfig.ClusterAuthenticationInfo,
 	}
 
 	// install legacy rest storage
-
+	// 这个方法是在apiserver启动的时候调用的，作用是安装legacy rest storage
 	if err := m.InstallLegacyAPI(&c, c.GenericConfig.RESTOptionsGetter); err != nil {
 		return nil, err
 	}
@@ -415,6 +418,7 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 	// with specific priorities.
 	// TODO: describe the priority all the way down in the RESTStorageProviders and plumb it back through the various discovery
 	// handlers that we have.
+	// REST接口的存储定义 node节点/storage /event等等
 	restStorageProviders := []RESTStorageProvider{
 		apiserverinternalrest.StorageProvider{},
 		authenticationrest.RESTStorageProvider{Authenticator: c.GenericConfig.Authentication.Authenticator, APIAudiences: c.GenericConfig.Authentication.APIAudiences},
@@ -438,6 +442,7 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 		eventsrest.RESTStorageProvider{TTL: c.ExtraConfig.EventTTL},
 		resourcerest.RESTStorageProvider{},
 	}
+	// 安装rest storage
 	if err := m.InstallAPIs(c.ExtraConfig.APIResourceConfigSource, c.GenericConfig.RESTOptionsGetter, restStorageProviders...); err != nil {
 		return nil, err
 	}
@@ -474,7 +479,7 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 				go controller.Run(ctx, 1)
 			}
 		}
-
+		// 作用是启动controller
 		go controller.Run(ctx, 1)
 		return nil
 	})
@@ -504,6 +509,7 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 				metav1.NamespaceSystem,
 				// TODO: receive identity label value as a parameter when post start hook is moved to generic apiserver.
 				labelAPIServerHeartbeatFunc(KubeAPIServer))
+			// 作用是启动一个goroutine，定时更新lease
 			go controller.Run(ctx)
 			return nil
 		})
@@ -588,6 +594,8 @@ func (m *Instance) InstallLegacyAPI(c *completedConfig, restOptionsGetter generi
 		APIAudiences:                c.GenericConfig.Authentication.APIAudiences,
 		Informers:                   c.ExtraConfig.VersionedInformers,
 	}
+	// NewLegacyRESTStorage 是一个闭包函数，返回一个 LegacyRESTStorageProvider，
+	//返回不同资源的reststorge资源。
 	legacyRESTStorage, apiGroupInfo, err := legacyRESTStorageProvider.NewLegacyRESTStorage(c.ExtraConfig.APIResourceConfigSource, restOptionsGetter)
 	if err != nil {
 		return fmt.Errorf("error building core storage: %v", err)
@@ -609,9 +617,12 @@ func (m *Instance) InstallLegacyAPI(c *completedConfig, restOptionsGetter generi
 	if err != nil {
 		return fmt.Errorf("error creating bootstrap controller: %v", err)
 	}
+	//在启动时，将bootstrapController的PostStartHook和PreShutdownHook添加到GenericAPIServer中
 	m.GenericAPIServer.AddPostStartHookOrDie(controllerName, bootstrapController.PostStartHook)
+	// 在关闭时，将bootstrapController的PreShutdownHook添加到GenericAPIServer中
 	m.GenericAPIServer.AddPreShutdownHookOrDie(controllerName, bootstrapController.PreShutdownHook)
 
+	// 这个函数的作用是将legacyRESTStorage注册到GenericAPIServer中
 	if err := m.GenericAPIServer.InstallLegacyAPIGroup(genericapiserver.DefaultLegacyAPIPrefix, &apiGroupInfo); err != nil {
 		return fmt.Errorf("error in registering group versions: %v", err)
 	}

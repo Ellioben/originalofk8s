@@ -96,6 +96,7 @@ type Config struct {
 
 // New returns an authenticator.Request or an error that supports the standard
 // Kubernetes authentication mechanisms.
+// 组合各种认证方式
 func (config Config) New() (authenticator.Request, *spec.SecurityDefinitions, error) {
 	var authenticators []authenticator.Request
 	var tokenAuthenticators []authenticator.Token
@@ -153,6 +154,9 @@ func (config Config) New() (authenticator.Request, *spec.SecurityDefinitions, er
 	// cache misses for all requests using the other. While the service account plugin
 	// simply returns an error, the OpenID Connect plugin may query the provider to
 	// update the keys, causing performance hits.
+	//注意：
+	// 保留 OpenID 连接后服务帐户。由于这两个插件都会验证联合中先到的 JWT，因此使用另一个插件的所有请求都会遇到缓存未命中。
+	//虽然服务帐户插件仅返回错误，但 OpenID Connect 插件可能会查询提供程序以更新密钥，从而导致性能下降。
 	if len(config.OIDCIssuerURL) > 0 && len(config.OIDCClientID) > 0 {
 		// TODO(enj): wire up the Notifier and ControllerRunner bits when OIDC supports CA reload
 		var oidcCAContent oidc.CAContentProvider
@@ -217,13 +221,13 @@ func (config Config) New() (authenticator.Request, *spec.SecurityDefinitions, er
 	authenticator := union.New(authenticators...)
 
 	authenticator = group.NewAuthenticatedGroupAdder(authenticator)
-
+	// 没有任何认证方式且启用了Anonymous
 	if config.Anonymous {
 		// If the authenticator chain returns an error, return an error (don't consider a bad bearer token
 		// or invalid username/password combination anonymous).
 		authenticator = union.NewFailOnError(authenticator, anonymous.NewAuthenticator())
 	}
-
+	//组合authenticators
 	return authenticator, &securityDefinitions, nil
 }
 

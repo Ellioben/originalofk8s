@@ -503,7 +503,7 @@ func (o *BuiltInAuthenticationOptions) ApplyTo(authInfo *genericapiserver.Authen
 		}
 		authenticatorConfig.CustomDial = egressDialer
 	}
-
+	// 这里的authenticatorConfig.Authenticator是一个接口，实现了AuthenticateRequest方法
 	authInfo.Authenticator, openAPIConfig.SecurityDefinitions, err = authenticatorConfig.New()
 	if openAPIV3Config != nil {
 		openAPIV3Config.SecurityDefinitions = openAPIConfig.SecurityDefinitions

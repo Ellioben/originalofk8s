@@ -69,6 +69,7 @@ type Scheduler struct {
 	// is available. We don't use a channel for this, because scheduling
 	// a pod may take some amount of time and we don't want pods to get
 	// stale while they sit in a channel.
+	// 也是一个一个去schedule pod
 	NextPod func() *framework.QueuedPodInfo
 
 	// FailureHandler is called upon a scheduling failure.
@@ -282,6 +283,7 @@ func New(ctx context.Context,
 
 	metrics.Register()
 
+	// buildExtenders是用来构建extenders的，extenders是一个slice，slice中的每个元素都是一个extender。
 	extenders, err := buildExtenders(logger, options.extenders, options.profiles)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't build extenders: %w", err)
@@ -353,11 +355,12 @@ func New(ctx context.Context,
 		nodeInfoSnapshot:         snapshot,
 		percentageOfNodesToScore: options.percentageOfNodesToScore,
 		Extenders:                extenders,
-		NextPod:                  internalqueue.MakeNextPodFunc(logger, podQueue),
-		StopEverything:           stopEverything,
-		SchedulingQueue:          podQueue,
-		Profiles:                 profiles,
-		logger:                   logger,
+		// NextPod是一个函数，用于从podQueue中获取pod，然后调用scheduleOne函数对pod进行调度。
+		NextPod:         internalqueue.MakeNextPodFunc(logger, podQueue),
+		StopEverything:  stopEverything,
+		SchedulingQueue: podQueue,
+		Profiles:        profiles,
+		logger:          logger,
 	}
 	sched.applyDefaultHandlers()
 
@@ -405,6 +408,7 @@ func (sched *Scheduler) Run(ctx context.Context) {
 	// If there are no new pods to schedule, it will be hanging there
 	// and if done in this goroutine it will be blocking closing
 	// SchedulingQueue, in effect causing a deadlock on shutdown.
+	// sched.scheduleOne是一个函数，用于从podQueue中获取pod，然后对pod进行调度。
 	go wait.UntilWithContext(ctx, sched.scheduleOne, 0)
 
 	<-ctx.Done()

@@ -279,6 +279,16 @@ func (sched *Scheduler) WaitForHandlersSync(ctx context.Context) error {
 
 // addAllEventHandlers is a helper function used in tests and in Scheduler
 // to add event handlers for various informers.
+// 实现了各种事件的处理
+// 步骤：
+// 1. 为pod添加事件处理
+// 2. 为node添加事件处理
+// 3. 为pv添加事件处理
+// 4. 为pvc添加事件处理
+// 5. 为cs添加事件处理
+// 6. 为crd添加事件处理
+// 7. 为cr添加事件处理
+// 8. 为cs添加事件处理
 func addAllEventHandlers(
 	sched *Scheduler,
 	informerFactory informers.SharedInformerFactory,

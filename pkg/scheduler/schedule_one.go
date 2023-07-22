@@ -72,6 +72,8 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 		return
 	}
 	pod := podInfo.Pod
+	// frameworkForPod 是一个调度框架，它会根据 pod 的 spec 中的 schedulerName 字段来选择调度框架，
+	//比如 pod.spec.schedulerName = "default-scheduler"，那么就会选择 default-scheduler 调度框架。
 	fwk, err := sched.frameworkForPod(pod)
 	if err != nil {
 		// This shouldn't happen, because we only accept for scheduling the pods
@@ -79,6 +81,7 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 		logger.Error(err, "Error occurred")
 		return
 	}
+	// 是不是可以跳过调度，如果可以跳过调度，那么就直接绑定到指定的节点上。
 	if sched.skipPodSchedule(ctx, fwk, pod) {
 		return
 	}
@@ -88,6 +91,7 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 	// Synchronously attempt to find a fit for the pod.
 	start := time.Now()
 	state := framework.NewCycleState()
+	// pluginMetricsSamplePercent 是一个百分比，它的值是 10，也就是说，只有 10% 的 pod 会被记录到 metrics 中。
 	state.SetRecordPluginMetrics(rand.Intn(100) < pluginMetricsSamplePercent)
 
 	// Initialize an empty podsToActivate struct, which will be filled up by plugins or stay empty.
@@ -97,6 +101,7 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 	schedulingCycleCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	// schedulingCycle是调度的核心函数，它会调用调度框架的 Filter 和 Score 函数，然后根据调度框架的优先级队列来选择最优的节点。
 	scheduleResult, assumedPodInfo, status := sched.schedulingCycle(schedulingCycleCtx, state, fwk, podInfo, start, podsToActivate)
 	if !status.IsSuccess() {
 		sched.FailureHandler(schedulingCycleCtx, fwk, assumedPodInfo, status, scheduleResult.nominatingInfo, start)
@@ -107,12 +112,14 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 	go func() {
 		bindingCycleCtx, cancel := context.WithCancel(ctx)
 		defer cancel()
-
+		// WithLabelValues 是一个 prometheus 的函数，它会根据传入的参数来生成一个 metrics 的 label。
 		metrics.Goroutines.WithLabelValues(metrics.Binding).Inc()
 		defer metrics.Goroutines.WithLabelValues(metrics.Binding).Dec()
 
+		// bindingCycle 是绑定的核心函数，它会调用调度框架的 Bind 函数，然后将 pod 绑定到指定的节点上。
 		status := sched.bindingCycle(bindingCycleCtx, state, fwk, scheduleResult, assumedPodInfo, start, podsToActivate)
 		if !status.IsSuccess() {
+			// handleBindingCycleError 是一个回调函数，它会根据调度框架的配置来处理绑定失败的情况。
 			sched.handleBindingCycleError(bindingCycleCtx, state, fwk, assumedPodInfo, start, scheduleResult, status)
 		}
 	}()
@@ -121,6 +128,13 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 var clearNominatedNode = &framework.NominatingInfo{NominatingMode: framework.ModeOverride, NominatedNodeName: ""}
 
 // schedulingCycle tries to schedule a single Pod.
+// 这是调度的核心函数，它会调用调度框架的 Filter 和 Score 函数，然后根据调度框架的优先级队列来选择最优的节点。
+// 步骤如下：
+// 1. 调用调度框架的 Filter 函数，过滤掉不符合要求的节点。
+// 2. 调用调度框架的 Score 函数，对每个节点进行打分。
+// 3. 根据调度框架的优先级队列来选择最优的节点。
+// 4. 如果没有找到合适的节点，那么就返回 ErrNoNodesAvailable 错误。
+// 5. 如果找到了合适的节点，那么就返回 ScheduleResult。
 func (sched *Scheduler) schedulingCycle(
 	ctx context.Context,
 	state *framework.CycleState,
@@ -131,6 +145,7 @@ func (sched *Scheduler) schedulingCycle(
 ) (ScheduleResult, *framework.QueuedPodInfo, *framework.Status) {
 	logger := klog.FromContext(ctx)
 	pod := podInfo.Pod
+	// 1. 调用调度框架的 Filter 函数，过滤掉不符合要求的节点。
 	scheduleResult, err := sched.SchedulePod(ctx, fwk, state, pod)
 	if err != nil {
 		if err == ErrNoNodesAvailable {
@@ -177,6 +192,7 @@ func (sched *Scheduler) schedulingCycle(
 	assumedPodInfo := podInfo.DeepCopy()
 	assumedPod := assumedPodInfo.Pod
 	// assume modifies `assumedPod` by setting NodeName=scheduleResult.SuggestedHost
+	// assume是一个假设函数，它会将 pod 绑定到指定的节点上。
 	err = sched.assume(logger, assumedPod, scheduleResult.SuggestedHost)
 	if err != nil {
 		// This is most probably result of a BUG in retrying logic.
@@ -340,6 +356,8 @@ func (sched *Scheduler) skipPodSchedule(ctx context.Context, fwk framework.Frame
 // schedulePod tries to schedule the given pod to one of the nodes in the node list.
 // If it succeeds, it will return the name of the node.
 // If it fails, it will return a FitError with reasons.
+//schedulePod 尝试将给定的 Pod 调度到节点列表中的一个节点。
+//如果成功，它将返回节点的名称。如果失败，它将返回一个带有原因的 FitError。
 func (sched *Scheduler) schedulePod(ctx context.Context, fwk framework.Framework, state *framework.CycleState, pod *v1.Pod) (result ScheduleResult, err error) {
 	trace := utiltrace.New("Scheduling", utiltrace.Field{Key: "namespace", Value: pod.Namespace}, utiltrace.Field{Key: "name", Value: pod.Name})
 	defer trace.LogIfLong(100 * time.Millisecond)
@@ -351,7 +369,7 @@ func (sched *Scheduler) schedulePod(ctx context.Context, fwk framework.Framework
 	if sched.nodeInfoSnapshot.NumNodes() == 0 {
 		return result, ErrNoNodesAvailable
 	}
-
+	// 查找适合 Pod 的节点
 	feasibleNodes, diagnosis, err := sched.findNodesThatFitPod(ctx, fwk, state, pod)
 	if err != nil {
 		return result, err
@@ -367,6 +385,7 @@ func (sched *Scheduler) schedulePod(ctx context.Context, fwk framework.Framework
 	}
 
 	// When only one node after predicate, just use it.
+	// 当谓词之后只有一个节点时，不用打分
 	if len(feasibleNodes) == 1 {
 		return ScheduleResult{
 			SuggestedHost:  feasibleNodes[0].Name,
@@ -375,11 +394,12 @@ func (sched *Scheduler) schedulePod(ctx context.Context, fwk framework.Framework
 		}, nil
 	}
 
+	// 优先级排序(进行打分)	// 选择最高分的节点，如果有多个最高分的节点，随机选择一个
 	priorityList, err := prioritizeNodes(ctx, sched.Extenders, fwk, state, pod, feasibleNodes)
 	if err != nil {
 		return result, err
 	}
-
+	// 查到对应host
 	host, _, err := selectHost(priorityList, numberOfHighestScoredNodesToReport)
 	trace.Step("Prioritizing done")
 
@@ -481,6 +501,7 @@ func (sched *Scheduler) evaluateNominatedNode(ctx context.Context, pod *v1.Pod, 
 }
 
 // findNodesThatPassFilters finds the nodes that fit the filter plugins.
+// findNodesThatPassFilter是找到适合过滤插件的节点。
 func (sched *Scheduler) findNodesThatPassFilters(
 	ctx context.Context,
 	fwk framework.Framework,
@@ -554,6 +575,7 @@ func (sched *Scheduler) findNodesThatPassFilters(
 
 // numFeasibleNodesToFind returns the number of feasible nodes that once found, the scheduler stops
 // its search for more feasible nodes.
+// numFeasibleNodesToFind返回可行节点的数量，一旦找到，调度程序就会停止
 func (sched *Scheduler) numFeasibleNodesToFind(percentageOfNodesToScore *int32, numAllNodes int32) (numNodes int32) {
 	if numAllNodes < minFeasibleNodesToFind {
 		return numAllNodes

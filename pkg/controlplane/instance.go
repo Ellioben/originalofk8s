@@ -466,6 +466,7 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 				if err := controller.RunOnce(ctx); err != nil {
 					runtime.HandleError(err)
 				}
+				// 调用schedular的run方法
 				go controller.Run(ctx, 1)
 			}
 		}
@@ -479,7 +480,8 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 				go controller.Run(ctx, 1)
 			}
 		}
-		// 作用是启动controller
+		// 作用是启动controller ，监听证书的变化,
+		//调用schedular的run方法
 		go controller.Run(ctx, 1)
 		return nil
 	})
@@ -504,12 +506,13 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 				holderIdentity,
 				int32(IdentityLeaseDurationSeconds),
 				nil,
-				IdentityLeaseRenewIntervalPeriod,
+				IdentityLeaseRenewIntervalPeriod, //10秒
 				leaseName,
 				metav1.NamespaceSystem,
 				// TODO: receive identity label value as a parameter when post start hook is moved to generic apiserver.
 				labelAPIServerHeartbeatFunc(KubeAPIServer))
-			// 作用是启动一个goroutine，定时更新lease
+			// 作用是启动一个goroutine，定时更新lease，事件间隔为IdentityLeaseRenewIntervalPeriod 10秒
+			// 调用schedular的run方法
 			go controller.Run(ctx)
 			return nil
 		})

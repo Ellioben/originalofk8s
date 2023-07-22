@@ -372,6 +372,7 @@ func (cache *cacheImpl) PodCount() (int, error) {
 	return count, nil
 }
 
+// AssumePod是cacheImpl的一个方法，用于将pod添加到cache中。
 func (cache *cacheImpl) AssumePod(logger klog.Logger, pod *v1.Pod) error {
 	key, err := framework.GetPodKey(pod)
 	if err != nil {

@@ -767,6 +767,8 @@ func (f *frameworkImpl) runPreFilterExtensionRemovePod(ctx context.Context, pl f
 // the given node. If any of these plugins doesn't return "Success", the
 // given node is not suitable for running pod.
 // Meanwhile, the failure message and status are set for the given node.
+// RunFilterPlugins 在给定节点上运行一组为 pod 配置的 Filter 插件。
+//如果这些插件中的任何一个没有返回“成功”，则给定节点不适合运行 pod。同时，为给定节点设置失败消息和状态。
 func (f *frameworkImpl) RunFilterPlugins(
 	ctx context.Context,
 	state *framework.CycleState,
@@ -875,6 +877,11 @@ func (f *frameworkImpl) runPostFilterPlugin(ctx context.Context, pl framework.Po
 // and add the nominated pods. Removal of the victims is done by
 // SelectVictimsOnNode(). Preempt removes victims from PreFilter state and
 // NodeInfo before calling this function.
+// unFilterPluginsWithNominatedPods 在给定节点上运行一组已配置的过滤器插件，用于指定 pod。
+// 此函数从两个不同位置调用：计划和抢占。
+// 当从 Schedule 调用它时，我们希望测试节点上的 Pod 是否可调度，节点上的所有现有 Pod 以及指定在节点上运行的更高优先级和同等优先级的 Pod。
+// 当从抢占调用它时，我们应该删除抢占的受害者并添加指定的 pod。
+// 删除受害者是通过SelectVictims OnNode（）完成的。在调用此函数之前，抢占会将受害者从预过滤器状态和节点信息中删除。
 func (f *frameworkImpl) RunFilterPluginsWithNominatedPods(ctx context.Context, state *framework.CycleState, pod *v1.Pod, info *framework.NodeInfo) *framework.Status {
 	var status *framework.Status
 

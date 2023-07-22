@@ -181,6 +181,8 @@ func ResyncPeriod(c *config.CompletedConfig) func() time.Duration {
 }
 
 // Run runs the KubeControllerManagerOptions.
+// This should never exit.
+// 用作启动kube-controller-manager
 func Run(ctx context.Context, c *config.CompletedConfig) error {
 	logger := klog.FromContext(ctx)
 	stopCh := ctx.Done()
@@ -195,6 +197,7 @@ func Run(ctx context.Context, c *config.CompletedConfig) error {
 	c.EventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: c.Client.CoreV1().Events("")})
 	defer c.EventBroadcaster.Shutdown()
 
+	// configz.New(ConfigzName)是一个configz.Configz对象，该对象实现了configz.Configz接口
 	if cfgz, err := configz.New(ConfigzName); err == nil {
 		cfgz.Set(c.ComponentConfig)
 	} else {
@@ -203,6 +206,7 @@ func Run(ctx context.Context, c *config.CompletedConfig) error {
 
 	// Setup any healthz checks we will want to use.
 	var checks []healthz.HealthChecker
+	// 健康检查
 	var electionChecker *leaderelection.HealthzAdaptor
 	if c.ComponentConfig.Generic.LeaderElection.LeaderElect {
 		electionChecker = leaderelection.NewLeaderHealthzAdaptor(time.Second * 20)
@@ -214,6 +218,7 @@ func Run(ctx context.Context, c *config.CompletedConfig) error {
 	// unsecuredMux is the handler for these controller *after* authn/authz filters have been applied
 	var unsecuredMux *mux.PathRecorderMux
 	if c.SecureServing != nil {
+		// http
 		unsecuredMux = genericcontrollermanager.NewBaseHandler(&c.ComponentConfig.Generic.Debugging, healthzHandler)
 		if utilfeature.DefaultFeatureGate.Enabled(features.ComponentSLIs) {
 			slis.SLIMetricsWithReset{}.Install(unsecuredMux)
@@ -225,6 +230,7 @@ func Run(ctx context.Context, c *config.CompletedConfig) error {
 		}
 	}
 
+	//createClientBuilders作用是创建clientBuilder和rootClientBuilder，用作创建client和rootClient
 	clientBuilder, rootClientBuilder := createClientBuilders(logger, c)
 
 	saTokenControllerInitFunc := serviceAccountTokenControllerStarter{rootClientBuilder: rootClientBuilder}.startServiceAccountTokenController
@@ -249,6 +255,7 @@ func Run(ctx context.Context, c *config.CompletedConfig) error {
 	}
 
 	// No leader election, run directly
+	//如果没有开启leader election，直接启动controller
 	if !c.ComponentConfig.Generic.LeaderElection.LeaderElect {
 		run(ctx, saTokenControllerInitFunc, NewControllerInitializers)
 		return nil
@@ -423,6 +430,8 @@ var ControllersDisabledByDefault = sets.NewString(
 
 // NewControllerInitializers is a public map of named controller groups (you can start more than one in an init func)
 // paired to their InitFunc.  This allows for structured downstream composition and subdivision.
+// NewControllerInitializers 是与其 InitFunc 配对的命名控制器组的公共映射（您可以在 init 函数中启动多个控制器组）。
+//这允许结构化的下游组成和细分。
 func NewControllerInitializers(loopMode ControllerLoopMode) map[string]InitFunc {
 	controllers := map[string]InitFunc{}
 
@@ -434,6 +443,8 @@ func NewControllerInitializers(loopMode ControllerLoopMode) map[string]InitFunc 
 		controllers[name] = fn
 	}
 
+	// 每个都是一个异步控制器，它会启动一个xxxController，然后调用Run方法，
+	//这个方法会启动一个工作队列，然后不断的从队列中取出任务，然后执行任务。
 	register(names.EndpointsController, startEndpointController)
 	register(names.EndpointSliceController, startEndpointSliceController)
 	register(names.EndpointSliceMirroringController, startEndpointSliceMirroringController)

@@ -181,6 +181,7 @@ func NewBaseController(rsInformer appsinformers.ReplicaSetInformer, podInformer 
 	rsc.podLister = podInformer.Lister()
 	rsc.podListerSynced = podInformer.Informer().HasSynced
 
+	// 找到对应的syncHandler
 	rsc.syncHandler = rsc.syncReplicaSet
 
 	return rsc
@@ -201,10 +202,12 @@ func (rsc *ReplicaSetController) Run(ctx context.Context, workers int) {
 	klog.FromContext(ctx).Info("Starting controller", "name", controllerName)
 	defer klog.FromContext(ctx).Info("Shutting down controller", "name", controllerName)
 
+	// WaitForNamedCacheSync是一个阻塞函数，直到所有的缓存都已经同步完成，或者超时
 	if !cache.WaitForNamedCacheSync(rsc.Kind, ctx.Done(), rsc.podListerSynced, rsc.rsListerSynced) {
 		return
 	}
 
+	//rsc.worker是一个函数，它会从队列中取出一个元素，然后调用syncHandler函数来处理这个元素
 	for i := 0; i < workers; i++ {
 		go wait.UntilWithContext(ctx, rsc.worker, time.Second)
 	}
@@ -655,6 +658,7 @@ func (rsc *ReplicaSetController) manageReplicas(ctx context.Context, filteredPod
 // syncReplicaSet will sync the ReplicaSet with the given key if it has had its expectations fulfilled,
 // meaning it did not expect to see any more of its pods created or deleted. This function is not meant to be
 // invoked concurrently with the same key.
+// 同步ReplicaSet，如果它的预期已经满足，也就是说，它不再期望看到任何它的pod被创建或删除。
 func (rsc *ReplicaSetController) syncReplicaSet(ctx context.Context, key string) error {
 	startTime := time.Now()
 	defer func() {
@@ -676,6 +680,7 @@ func (rsc *ReplicaSetController) syncReplicaSet(ctx context.Context, key string)
 	}
 
 	rsNeedsSync := rsc.expectations.SatisfiedExpectations(key)
+	// 判断和预期的pod数量是否一致
 	selector, err := metav1.LabelSelectorAsSelector(rs.Spec.Selector)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("error converting pod selector to selector for rs %v/%v: %v", namespace, name, err))
@@ -685,22 +690,27 @@ func (rsc *ReplicaSetController) syncReplicaSet(ctx context.Context, key string)
 	// list all pods to include the pods that don't match the rs`s selector
 	// anymore but has the stale controller ref.
 	// TODO: Do the List and Filter in a single pass, or use an index.
+	// 列出所有的pod，包括不再匹配rs的selector的pod，但是有过时的控制器引用。
 	allPods, err := rsc.podLister.Pods(rs.Namespace).List(labels.Everything())
 	if err != nil {
 		return err
 	}
+
 	// Ignore inactive pods.
 	filteredPods := controller.FilterActivePods(allPods)
 
 	// NOTE: filteredPods are pointing to objects from cache - if you need to
 	// modify them, you need to copy it first.
+	// NOTE: filteredPods指向缓存中的对象-如果您需要修改它们，您需要首先复制它们。
 	filteredPods, err = rsc.claimPods(ctx, rs, selector, filteredPods)
 	if err != nil {
 		return err
 	}
 
 	var manageReplicasErr error
+	// 同步相关
 	if rsNeedsSync && rs.DeletionTimestamp == nil {
+		// manageReplicas通过调整rs的副本数量来同步rs和pod的数量
 		manageReplicasErr = rsc.manageReplicas(ctx, filteredPods, rs)
 	}
 	rs = rs.DeepCopy()

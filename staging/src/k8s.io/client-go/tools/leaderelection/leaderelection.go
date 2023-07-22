@@ -210,6 +210,7 @@ func (le *LeaderElector) Run(ctx context.Context) {
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	// OnStartedLeading是一个回调函数，当一个LeaderElector客户端开始领导时调用
 	go le.config.Callbacks.OnStartedLeading(ctx)
 	le.renew(ctx)
 }

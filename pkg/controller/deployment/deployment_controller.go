@@ -483,6 +483,7 @@ func (dc *DeploymentController) processNextWorkItem(ctx context.Context) bool {
 	defer dc.queue.Done(key)
 
 	err := dc.syncHandler(ctx, key.(string))
+	// >>>>>>>>>>>>>
 	dc.handleErr(ctx, err, key)
 
 	return true
@@ -501,6 +502,7 @@ func (dc *DeploymentController) handleErr(ctx context.Context, err error, key in
 
 	if dc.queue.NumRequeues(key) < maxRetries {
 		logger.V(2).Info("Error syncing deployment", "deployment", klog.KRef(ns, name), "err", err)
+		// >>>>>>>>>>>>>client-go
 		dc.queue.AddRateLimited(key)
 		return
 	}

@@ -62,6 +62,9 @@ func startStatefulSetController(ctx context.Context, controllerContext Controlle
 	return nil, true, nil
 }
 
+// Path: pkg/controller/replicaset/replica_set.go
+//startReplicaSetController是一个goroutine，它会启动一个ReplicaSetController，然后调用Run方法，
+//这个方法会启动一个工作队列，然后不断的从队列中取出任务，然后执行任务。
 func startReplicaSetController(ctx context.Context, controllerContext ControllerContext) (controller.Interface, bool, error) {
 	go replicaset.NewReplicaSetController(
 		klog.FromContext(ctx),

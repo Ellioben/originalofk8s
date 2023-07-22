@@ -273,11 +273,13 @@ func Run(ctx context.Context, cc *schedulerserverconfig.CompletedConfig, sched *
 				}
 			},
 		}
+		// NewLeaderElector是一个阻塞函数，直到选举出leader
 		leaderElector, err := leaderelection.NewLeaderElector(*cc.LeaderElection)
 		if err != nil {
 			return fmt.Errorf("couldn't create leader elector: %v", err)
 		}
 
+		// 选举leader
 		leaderElector.Run(ctx)
 
 		return fmt.Errorf("lost lease")

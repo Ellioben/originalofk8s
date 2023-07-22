@@ -1564,6 +1564,7 @@ func (kl *Kubelet) initializeRuntimeDependentModules() {
 }
 
 // Run starts the kubelet reacting to config updates
+// 这个是kubelet的主要入口
 func (kl *Kubelet) Run(updates <-chan kubetypes.PodUpdate) {
 	ctx := context.Background()
 	if kl.logServer == nil {
@@ -1643,6 +1644,7 @@ func (kl *Kubelet) Run(updates <-chan kubetypes.PodUpdate) {
 	}
 
 	// Start component sync loops.
+	// 启用了feature gate的话，会启动syncLoopForComponent
 	kl.statusManager.Start()
 
 	// Start syncing RuntimeClasses if enabled.
@@ -1651,6 +1653,7 @@ func (kl *Kubelet) Run(updates <-chan kubetypes.PodUpdate) {
 	}
 
 	// Start the pod lifecycle event generator.
+	// 启动PLEG，用作pod的生命周期管理
 	kl.pleg.Start()
 
 	// Start eventedPLEG only if EventedPLEG feature gate is enabled.
@@ -1658,6 +1661,7 @@ func (kl *Kubelet) Run(updates <-chan kubetypes.PodUpdate) {
 		kl.eventedPleg.Start()
 	}
 
+	// syncLoop是kubelet的核心逻辑
 	kl.syncLoop(ctx, updates, kl)
 }
 
@@ -1837,6 +1841,8 @@ func (kl *Kubelet) SyncPod(ctx context.Context, updateType kubetypes.SyncPodType
 
 	// Create Cgroups for the pod and apply resource parameters
 	// to them if cgroups-per-qos flag is enabled.
+	// NewPodContainerManager()是创建pod的cgroup
+
 	pcm := kl.containerManager.NewPodContainerManager()
 	// If pod has already been terminated then we need not create
 	// or update the pod's cgroup
@@ -1957,6 +1963,7 @@ func (kl *Kubelet) SyncPod(ctx context.Context, updateType kubetypes.SyncPodType
 	// SyncPod is a known and deliberate error, not a generic error.
 	todoCtx := context.TODO()
 	// Call the container runtime's SyncPod callback
+	// SyncPod是真正的创建pod的地方
 	result := kl.containerRuntime.SyncPod(todoCtx, pod, podStatus, pullSecrets, kl.backOff)
 	kl.reasonCache.Update(pod.UID, result)
 	if err := result.Error(); err != nil {
@@ -2330,6 +2337,7 @@ func (kl *Kubelet) syncLoop(ctx context.Context, updates <-chan kubetypes.PodUpd
 	// The syncTicker wakes up kubelet to checks if there are any pod workers
 	// that need to be sync'd. A one-second period is sufficient because the
 	// sync interval is defaulted to 10s.
+	// syncTicker用作唤醒kubelet，检查是否有需要同步的pod worker。1s的周期足以满足需求，因为同步间隔默认为10s。
 	syncTicker := time.NewTicker(time.Second)
 	defer syncTicker.Stop()
 	housekeepingTicker := time.NewTicker(housekeepingPeriod)
@@ -2360,6 +2368,7 @@ func (kl *Kubelet) syncLoop(ctx context.Context, updates <-chan kubetypes.PodUpd
 		duration = base
 
 		kl.syncLoopMonitor.Store(kl.clock.Now())
+		// syncLoopIteration 是一个阻塞函数，直到有事件发生才会返回
 		if !kl.syncLoopIteration(ctx, updates, handler, syncTicker.C, housekeepingTicker.C, plegCh) {
 			break
 		}
@@ -2402,7 +2411,7 @@ func (kl *Kubelet) syncLoop(ctx context.Context, updates <-chan kubetypes.PodUpd
 // 这个函数是kubelet的主循环，负责处理各种事件，包括：
 // 1.  configCh:       从这个channel读取配置事件
 // 2.  handler:        用于处理pod的SyncHandler
-// 3.  syncCh:         从这个channel读取周期性的同步事件
+// 3.  syncCh:         从这个channel读取周期性的同步事件（controller-manager）
 // 4.  housekeepingCh: 从这个channel读取housekeeping事件
 // 5.  plegCh:         从这个channel读取PLEG更新
 func (kl *Kubelet) syncLoopIteration(ctx context.Context, configCh <-chan kubetypes.PodUpdate, handler SyncHandler,
@@ -2471,6 +2480,7 @@ func (kl *Kubelet) syncLoopIteration(ctx context.Context, configCh <-chan kubety
 			break
 		}
 		klog.V(4).InfoS("SyncLoop (SYNC) pods", "total", len(podsToSync), "pods", klog.KObjSlice(podsToSync))
+		// 处理pod的同步
 		handler.HandlePodSyncs(podsToSync)
 	case update := <-kl.livenessManager.Updates():
 		if update.Result == proberesults.Failure {

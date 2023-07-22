@@ -949,6 +949,7 @@ func (p *podWorkers) UpdatePod(options UpdatePodOptions) {
 			// accept a context for shutdown
 			defer runtime.HandleCrash()
 			defer klog.V(3).InfoS("Pod worker has stopped", "podUID", uid)
+			// podWorkerLoop是一个死循环，不断的从podUpdates中读取数据，然后执行podWorkerLoop
 			p.podWorkerLoop(uid, outCh)
 		}()
 	}

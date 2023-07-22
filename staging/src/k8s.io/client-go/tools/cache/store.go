@@ -157,6 +157,7 @@ func SplitMetaNamespaceKey(key string) (namespace, name string, err error) {
 // associated KeyFunc.
 type cache struct {
 	// cacheStorage bears the burden of thread safety for the cache
+	// ThreadSafeStore是一个线程安全的map，用于存储数据，
 	cacheStorage ThreadSafeStore
 	// keyFunc is used to make the key for objects stored in and retrieved from items, and
 	// should be deterministic.

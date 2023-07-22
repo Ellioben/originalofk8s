@@ -481,6 +481,7 @@ func (s *sharedIndexInformer) Run(stopCh <-chan struct{}) {
 			RetryOnError:      false,
 			ShouldResync:      s.processor.shouldResync,
 
+			// 赋值一个处理delta的函数（process函数逻辑定义）
 			Process:           s.HandleDeltas,
 			WatchErrorHandler: s.watchErrorHandler,
 		}
@@ -639,7 +640,9 @@ func (s *sharedIndexInformer) HandleDeltas(obj interface{}, isInInitialList bool
 	s.blockDeltas.Lock()
 	defer s.blockDeltas.Unlock()
 
+	// deltas： config定义的资源对象
 	if deltas, ok := obj.(Deltas); ok {
+		// >>>>
 		return processDeltas(s, s.indexer, deltas, isInInitialList)
 	}
 	return errors.New("object given as Process argument is not Deltas")

@@ -288,6 +288,8 @@ func (f *FIFO) Pop(process PopProcessFunc) (interface{}, error) {
 			// When the queue is empty, invocation of Pop() is blocked until new item is enqueued.
 			// When Close() is called, the f.closed is set and the condition is broadcasted.
 			// Which causes this loop to continue and return from the Pop().
+			//当队列为空时，将阻止对 Pop（） 的调用，直到新项目排队。当调用 Close（） 时
+			//，将设置 f.closed 并广播条件。这会导致此循环继续并从 Pop（） 返回。
 			if f.closed {
 				return nil, ErrFIFOClosed
 			}
@@ -306,6 +308,7 @@ func (f *FIFO) Pop(process PopProcessFunc) (interface{}, error) {
 			continue
 		}
 		delete(f.items, id)
+		// 执行 {process} 函数 process函数是在锁定的情况下调用的，因此在其中更新需要与队列同步的数据结构是安全的。
 		err := process(item, isInInitialList)
 		if e, ok := err.(ErrRequeue); ok {
 			f.addIfNotPresent(id, item)

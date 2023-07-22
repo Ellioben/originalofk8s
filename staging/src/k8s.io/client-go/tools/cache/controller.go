@@ -157,7 +157,7 @@ func (c *controller) Run(stopCh <-chan struct{}) {
 	var wg wait.Group
 
 	// Start the reflector.
-	//r.Run结果放入 DeltaFIFO 中
+	//r.Run,各种watchevent结果放入 DeltaFIFO 中
 	wg.StartWithChannel(stopCh, r.Run)
 	// Start the queue.
 	wait.Until(c.processLoop, time.Second, stopCh)
@@ -187,6 +187,8 @@ func (c *controller) LastSyncResourceVersion() string {
 // actually exit when the controller is stopped. Or just give up on this stuff
 // ever being stoppable. Converting this whole package to use Context would
 // also be helpful.
+// 作用是从 DeltaFIFO 中取出一个对象，然后调用 c.config.Process 处理该对象
+
 func (c *controller) processLoop() {
 	for {
 		obj, err := c.config.Queue.Pop(PopProcessFunc(c.config.Process))
@@ -445,6 +447,7 @@ func processDeltas(
 	isInInitialList bool,
 ) error {
 	// from oldest to newest
+	// deltas 是一个 []Delta，
 	for _, d := range deltas {
 		obj := d.Object
 

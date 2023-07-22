@@ -74,6 +74,7 @@ import (
 // GenericInformer is type of SharedIndexInformer which will locate and delegate to other
 // sharedInformers based on type
 type GenericInformer interface {
+	//Informer是一个SharedIndexInformer
 	Informer() cache.SharedIndexInformer
 	Lister() cache.GenericLister
 }

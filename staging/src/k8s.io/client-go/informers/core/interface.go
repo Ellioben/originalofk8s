@@ -26,6 +26,7 @@ import (
 // Interface provides access to each of this group's versions.
 type Interface interface {
 	// V1 provides access to shared informers for resources in V1.
+	// different version
 	V1() v1.Interface
 }
 

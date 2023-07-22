@@ -270,6 +270,7 @@ func (o *Options) Validate() []error {
 }
 
 // Config return a scheduler config object
+// 作用：创建scheduler的config对象
 func (o *Options) Config(ctx context.Context) (*schedulerappconfig.Config, error) {
 	logger := klog.FromContext(ctx)
 	if o.SecureServing != nil {

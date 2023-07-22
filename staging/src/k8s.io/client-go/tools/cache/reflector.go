@@ -288,6 +288,7 @@ var internalPackages = []string{"client-go/tools/cache/"}
 func (r *Reflector) Run(stopCh <-chan struct{}) {
 	klog.V(3).Infof("Starting reflector %s (%s) from %s", r.typeDescription, r.resyncPeriod, r.name)
 	wait.BackoffUntil(func() {
+		// listAndWatch will return an error if it fails to list or watch.  We
 		if err := r.ListAndWatch(stopCh); err != nil {
 			r.watchErrorHandler(r, err)
 		}
@@ -328,6 +329,7 @@ func (r *Reflector) ListAndWatch(stopCh <-chan struct{}) error {
 	fallbackToList := !r.UseWatchList
 
 	if r.UseWatchList {
+		// Reflector.watchList will return list or watch.
 		w, err = r.watchList(stopCh)
 		if w == nil && err == nil {
 			// stopCh was closed
@@ -648,6 +650,7 @@ func (r *Reflector) watchList(stopCh <-chan struct{}) (watch.Interface, error) {
 			return nil, err
 		}
 		bookmarkReceived := pointer.Bool(false)
+		// 处理watch事件
 		err = watchHandler(start, w, temporaryStore, r.expectedType, r.expectedGVK, r.name, r.typeDescription,
 			func(rv string) { resourceVersion = rv },
 			bookmarkReceived,
@@ -709,6 +712,7 @@ func watchHandler(start time.Time,
 		*exitOnInitialEventsEndBookmark = false
 	}
 
+	// 用作watch事件的处理，将事件放入store中
 loop:
 	for {
 		select {

@@ -116,6 +116,7 @@ type Controller interface {
 
 // New makes a new Controller from the given Config.
 func New(c *Config) Controller {
+	// >>>>>>>>>>>>>>
 	ctlr := &controller{
 		config: *c,
 		clock:  &clock.RealClock{},
@@ -132,6 +133,7 @@ func (c *controller) Run(stopCh <-chan struct{}) {
 		<-stopCh
 		c.config.Queue.Close()
 	}()
+	// new reflector
 	r := NewReflectorWithOptions(
 		c.config.ListerWatcher,
 		c.config.ObjectType,
@@ -154,8 +156,10 @@ func (c *controller) Run(stopCh <-chan struct{}) {
 
 	var wg wait.Group
 
+	// Start the reflector.
+	//r.Run结果放入 DeltaFIFO 中
 	wg.StartWithChannel(stopCh, r.Run)
-
+	// Start the queue.
 	wait.Until(c.processLoop, time.Second, stopCh)
 	wg.Wait()
 }

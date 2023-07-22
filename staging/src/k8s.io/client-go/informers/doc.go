@@ -16,3 +16,5 @@ limitations under the License.
 
 // Package informers provides generated informers for Kubernetes APIs.
 package informers
+
+// Path: staging/src/k8s.io/client-go/informers/factory.go

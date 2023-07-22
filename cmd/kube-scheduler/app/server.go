@@ -20,6 +20,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"k8s-org/kubernetes/vendor/k8s.io/klog/v2"
 	"net/http"
 	"os"
 	goruntime "runtime"
@@ -147,6 +148,7 @@ func runCommand(cmd *cobra.Command, opts *options.Options, registryOptions ...Op
 	// add feature enablement metrics
 	// 添加一些 metrics
 	utilfeature.DefaultMutableFeatureGate.AddMetrics()
+	// informer factory
 	return Run(ctx, cc, sched)
 }
 
@@ -216,7 +218,7 @@ func Run(ctx context.Context, cc *schedulerserverconfig.CompletedConfig, sched *
 	// 启用 metrics
 	startInformersAndWaitForSync := func(ctx context.Context) {
 		// Start all informers.
-		// 启动 informer
+		// 启动 informer （client-go）
 		cc.InformerFactory.Start(ctx.Done())
 		// DynInformerFactory can be nil in tests.
 		if cc.DynInformerFactory != nil {

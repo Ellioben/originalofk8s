@@ -30,6 +30,7 @@ import (
 )
 
 // Config has all the context to run a Scheduler
+// Config是一个结构体，包含了运行调度器所需的所有上下文信息
 type Config struct {
 	// ComponentConfig is the scheduler server's configuration object.
 	ComponentConfig kubeschedulerconfig.KubeSchedulerConfiguration
@@ -43,7 +44,7 @@ type Config struct {
 
 	Client             clientset.Interface
 	KubeConfig         *restclient.Config
-	InformerFactory    informers.SharedInformerFactory
+	InformerFactory    informers.SharedInformerFactory //client-go的pkg
 	DynInformerFactory dynamicinformer.DynamicSharedInformerFactory
 
 	//nolint:staticcheck // SA1019 this deprecated field still needs to be used for now. It will be removed once the migration is done.
@@ -70,6 +71,7 @@ type CompletedConfig struct {
 }
 
 // Complete fills in any fields not set that are required to have valid data. It's mutating the receiver.
+// cc 是completedConfig的一个实例
 func (c *Config) Complete() CompletedConfig {
 	cc := completedConfig{c}
 

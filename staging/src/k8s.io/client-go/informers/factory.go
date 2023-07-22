@@ -53,6 +53,7 @@ import (
 // SharedInformerOption defines the functional option type for SharedInformerFactory.
 type SharedInformerOption func(*sharedInformerFactory) *sharedInformerFactory
 
+// 这个是一个工厂类，用于创建各种informer
 type sharedInformerFactory struct {
 	client           kubernetes.Interface
 	namespace        string
@@ -61,6 +62,7 @@ type sharedInformerFactory struct {
 	defaultResync    time.Duration
 	customResync     map[reflect.Type]time.Duration
 
+	// 创建对应type的informer
 	informers map[reflect.Type]cache.SharedIndexInformer
 	// startedInformers is used for tracking which informers have been started.
 	// This allows Start() to be called multiple times safely.
@@ -99,6 +101,7 @@ func WithNamespace(namespace string) SharedInformerOption {
 }
 
 // NewSharedInformerFactory constructs a new instance of sharedInformerFactory for all namespaces.
+// 创建一个工厂类，用于创建各种informer
 func NewSharedInformerFactory(client kubernetes.Interface, defaultResync time.Duration) SharedInformerFactory {
 	return NewSharedInformerFactoryWithOptions(client, defaultResync)
 }
@@ -112,6 +115,7 @@ func NewFilteredSharedInformerFactory(client kubernetes.Interface, defaultResync
 }
 
 // NewSharedInformerFactoryWithOptions constructs a new instance of a SharedInformerFactory with additional options.
+// 创建一个工厂类，用于创建各种informer
 func NewSharedInformerFactoryWithOptions(client kubernetes.Interface, defaultResync time.Duration, options ...SharedInformerOption) SharedInformerFactory {
 	factory := &sharedInformerFactory{
 		client:           client,
@@ -139,6 +143,7 @@ func (f *sharedInformerFactory) Start(stopCh <-chan struct{}) {
 	}
 
 	for informerType, informer := range f.informers {
+		// 加锁，防止多次启动
 		if !f.startedInformers[informerType] {
 			f.wg.Add(1)
 			// We need a new variable in each loop iteration,
@@ -186,6 +191,8 @@ func (f *sharedInformerFactory) WaitForCacheSync(stopCh <-chan struct{}) map[ref
 
 // InformerFor returns the SharedIndexInformer for obj using an internal
 // client.
+// Deprecated: use InformerForKind instead.
+// 作用：根据对象类型获取对应的informer
 func (f *sharedInformerFactory) InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer {
 	f.lock.Lock()
 	defer f.lock.Unlock()
@@ -231,7 +238,10 @@ func (f *sharedInformerFactory) InformerFor(obj runtime.Object, newFunc internal
 //	// Start must be called again:
 //	anotherGenericInformer := factory.ForResource(resource)
 //	factory.Start(ctx.Done())
+// 作用：创建各种informer「group」
 type SharedInformerFactory interface {
+	// 这个结构体中的方法都是对下面的方法的封装
+	//包括：创建各种informer「group」、启动informer、关闭informer、等待informer缓存同步
 	internalinterfaces.SharedInformerFactory
 
 	// Start initializes all requested informers. They are handled in goroutines
@@ -255,6 +265,7 @@ type SharedInformerFactory interface {
 	WaitForCacheSync(stopCh <-chan struct{}) map[reflect.Type]bool
 
 	// ForResource gives generic access to a shared informer of the matching type.
+	// 作用：根据真实资源类型获取对应的informer，比如：deployment
 	ForResource(resource schema.GroupVersionResource) (GenericInformer, error)
 
 	// InformerFor returns the SharedIndexInformer for obj using an internal

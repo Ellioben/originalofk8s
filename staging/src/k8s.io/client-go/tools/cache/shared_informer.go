@@ -464,12 +464,14 @@ func (s *sharedIndexInformer) Run(stopCh <-chan struct{}) {
 		s.startedLock.Lock()
 		defer s.startedLock.Unlock()
 
+		// 声明一个 DeltaFIFO
 		fifo := NewDeltaFIFOWithOptions(DeltaFIFOOptions{
 			KnownObjects:          s.indexer,
 			EmitDeltaTypeReplaced: true,
 			Transformer:           s.transform,
 		})
 
+		// 声明一个controller的配置
 		cfg := &Config{
 			Queue:             fifo,
 			ListerWatcher:     s.listerWatcher,
@@ -483,6 +485,7 @@ func (s *sharedIndexInformer) Run(stopCh <-chan struct{}) {
 			WatchErrorHandler: s.watchErrorHandler,
 		}
 
+		// 一个controller
 		s.controller = New(cfg)
 		s.controller.(*controller).clock = s.clock
 		s.started = true
@@ -501,6 +504,7 @@ func (s *sharedIndexInformer) Run(stopCh <-chan struct{}) {
 		defer s.startedLock.Unlock()
 		s.stopped = true // Don't want any new listeners
 	}()
+	// Run the controller
 	s.controller.Run(stopCh)
 }
 

@@ -94,6 +94,7 @@ type GenericStore interface {
 // specific to the API.
 //
 // TODO: make the default exposed methods exactly match a generic RESTStorage
+// 作用：实现了rest.StandardStorage接口，提供了对资源的增删改查的方法
 type Store struct {
 	// NewFunc returns a new instance of the type this registry returns for a
 	// GET of a single object, e.g.:
@@ -167,6 +168,8 @@ type Store struct {
 	Decorator func(runtime.Object)
 
 	// CreateStrategy implements resource-specific behavior during creation.
+	// 关于创建的策略，包括了创建前的检查，创建后的处理，以及创建的具体实现，
+	// 字段的处理，以及创建的具体实现
 	CreateStrategy rest.RESTCreateStrategy
 	// BeginCreate is an optional hook that returns a "transaction-like"
 	// commit/revert function which will be called at the end of the operation,
@@ -215,6 +218,7 @@ type Store struct {
 	// Storage is the interface for the underlying storage for the
 	// resource. It is wrapped into a "DryRunnableStorage" that will
 	// either pass-through or simply dry-run.
+	// 存储接口，包括了增删改查，以及watch等操作
 	Storage DryRunnableStorage
 	// StorageVersioner outputs the <group/version/kind> an object will be
 	// converted to before persisted in etcd, given a list of possible
@@ -1350,6 +1354,8 @@ func (e *Store) calculateTTL(obj runtime.Object, defaultTTL int64, update bool) 
 
 // CompleteWithOptions updates the store with the provided options and
 // defaults common fields.
+// 被kubeapiserver/storage.go:NewStorage()调用
+// 作用是将传入的options中的字段赋值给Store结构体中的字段
 func (e *Store) CompleteWithOptions(options *generic.StoreOptions) error {
 	if e.DefaultQualifiedResource.Empty() {
 		return fmt.Errorf("store %#v must have a non-empty qualified resource", e)
@@ -1478,10 +1484,11 @@ func (e *Store) CompleteWithOptions(options *generic.StoreOptions) error {
 			return accessor.GetName(), nil
 		}
 	}
-
+	// 如果没有设置Storage，则使用Decorator创建Storage
 	if e.Storage.Storage == nil {
 		e.Storage.Codec = opts.StorageConfig.Codec
 		var err error
+		// 创建Storage，通过Decorator包装
 		e.Storage.Storage, e.DestroyFunc, err = opts.Decorator(
 			opts.StorageConfig,
 			prefix,

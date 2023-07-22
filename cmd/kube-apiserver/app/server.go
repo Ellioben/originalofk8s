@@ -164,6 +164,7 @@ func Run(opts options.CompletedOptions, stopCh <-chan struct{}) error {
 	if err != nil {
 		return err
 	}
+	// 初始化各种aoiserver，storage....
 	server, err := CreateServerChain(completed)
 	if err != nil {
 		return err

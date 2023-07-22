@@ -26,6 +26,7 @@ import (
 
 // StorageDecorator is a function signature for producing a storage.Interface
 // and an associated DestroyFunc from given parameters.
+// 这个函数签名用于生成一个storage.Interface和一个相关的DestroyFunc
 type StorageDecorator func(
 	config *storagebackend.ConfigForResource,
 	resourcePrefix string,
@@ -38,6 +39,7 @@ type StorageDecorator func(
 
 // UndecoratedStorage returns the given a new storage from the given config
 // without any decoration.
+// UndecoratedStorage从给定的配置返回一个新的storage，不做任何装饰
 func UndecoratedStorage(
 	config *storagebackend.ConfigForResource,
 	resourcePrefix string,

@@ -398,7 +398,7 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 	}
 
 	// install legacy rest storage
-	// 这个方法是在apiserver启动的时候调用的，作用是安装legacy rest storage
+	// 这个方法是在apiserver启动的时候调用的，作用是安装legacy rest storage。存储各种初始化接口
 	if err := m.InstallLegacyAPI(&c, c.GenericConfig.RESTOptionsGetter); err != nil {
 		return nil, err
 	}

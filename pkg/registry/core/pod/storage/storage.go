@@ -48,6 +48,7 @@ import (
 
 // PodStorage includes storage for pods and all sub resources
 type PodStorage struct {
+	//>>
 	Pod                 *REST
 	Binding             *BindingREST
 	LegacyBinding       *LegacyBindingREST
@@ -64,10 +65,12 @@ type PodStorage struct {
 // REST implements a RESTStorage for pods
 type REST struct {
 	*genericregistry.Store
+	// prox
 	proxyTransport http.RoundTripper
 }
 
 // NewStorage returns a RESTStorage object that will work against pods.
+//作用：创建pod的存储对象
 func NewStorage(optsGetter generic.RESTOptionsGetter, k client.ConnectionInfoGetter, proxyTransport http.RoundTripper, podDisruptionBudgetClient policyclient.PodDisruptionBudgetsGetter) (PodStorage, error) {
 
 	store := &genericregistry.Store{
@@ -92,6 +95,7 @@ func NewStorage(optsGetter generic.RESTOptionsGetter, k client.ConnectionInfoGet
 		TriggerFunc: map[string]storage.IndexerFunc{"spec.nodeName": registrypod.NodeNameTriggerFunc},
 		Indexers:    registrypod.Indexers(),
 	}
+	// 初始化pod存储
 	if err := store.CompleteWithOptions(options); err != nil {
 		return PodStorage{}, err
 	}
@@ -103,6 +107,7 @@ func NewStorage(optsGetter generic.RESTOptionsGetter, k client.ConnectionInfoGet
 	ephemeralContainersStore.UpdateStrategy = registrypod.EphemeralContainersStrategy
 
 	bindingREST := &BindingREST{store: store}
+	// 创建pod存储结构体
 	return PodStorage{
 		Pod:                 &REST{store, proxyTransport},
 		Binding:             &BindingREST{store: store},

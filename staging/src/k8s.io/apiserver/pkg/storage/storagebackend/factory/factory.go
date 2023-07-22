@@ -33,6 +33,7 @@ func Create(c storagebackend.ConfigForResource, newFunc func() runtime.Object) (
 	switch c.Type {
 	case storagebackend.StorageTypeETCD2:
 		return nil, nil, fmt.Errorf("%s is no longer a supported storage backend", c.Type)
+		// 判断c.Type的值，如果是etcd3
 	case storagebackend.StorageTypeUnset, storagebackend.StorageTypeETCD3:
 		return newETCD3Storage(c, newFunc)
 	default:

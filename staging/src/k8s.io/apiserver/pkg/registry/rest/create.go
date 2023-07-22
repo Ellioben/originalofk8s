@@ -37,13 +37,16 @@ import (
 // RESTCreateStrategy defines the minimum validation, accepted input, and
 // name generation behavior to create an object that follows Kubernetes
 // API conventions.
+// RESTCreateStrategy 定义了最小的验证、接受的输入和名称生成行为，以创建遵循 Kubernetes API 约定的对象。
 type RESTCreateStrategy interface {
+	// 对象相关的类型信息
 	runtime.ObjectTyper
 	// The name generator is used when the standard GenerateName field is set.
 	// The NameGenerator will be invoked prior to validation.
 	names.NameGenerator
 
 	// NamespaceScoped returns true if the object must be within a namespace.
+	// 检查对象是否必须在命名空间中
 	NamespaceScoped() bool
 	// PrepareForCreate is invoked on create before validation to normalize
 	// the object.  For example: remove fields that are not to be persisted,
@@ -54,11 +57,13 @@ type RESTCreateStrategy interface {
 	// status. Clear the status because status changes are internal. External
 	// callers of an api (users) should not be setting an initial status on
 	// newly created objects.
+	// 创建对象之前的准备工作
 	PrepareForCreate(ctx context.Context, obj runtime.Object)
 	// Validate returns an ErrorList with validation errors or nil.  Validate
 	// is invoked after default fields in the object have been filled in
 	// before the object is persisted.  This method should not mutate the
 	// object.
+	// 对象创建之前的校验
 	Validate(ctx context.Context, obj runtime.Object) field.ErrorList
 	// WarningsOnCreate returns warnings to the client performing a create.
 	// WarningsOnCreate is invoked after default fields in the object have been filled in
@@ -79,6 +84,7 @@ type RESTCreateStrategy interface {
 	//
 	// Warnings should not be returned for fields which cannot be resolved by the caller.
 	// For example, do not warn about spec fields in a subresource creation request.
+	// 告警信息
 	WarningsOnCreate(ctx context.Context, obj runtime.Object) []string
 	// Canonicalize allows an object to be mutated into a canonical form. This
 	// ensures that code that operates on these objects can rely on the common
@@ -86,6 +92,7 @@ type RESTCreateStrategy interface {
 	// validation has succeeded but before the object has been persisted.
 	// This method may mutate the object. Often implemented as a type check or
 	// empty method.
+	// 规范化对象
 	Canonicalize(obj runtime.Object)
 }
 

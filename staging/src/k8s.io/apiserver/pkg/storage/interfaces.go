@@ -156,6 +156,7 @@ func (p *Preconditions) Check(key string, obj runtime.Object) error {
 
 // Interface offers a common interface for object marshaling/unmarshaling operations and
 // hides all the storage-related operations behind it.
+// 这个接口提供了一个通用的接口，用于对象的编组/解组操作，并将所有与存储相关的操作隐藏在其后。
 type Interface interface {
 	// Returns Versioner associated with this interface.
 	Versioner() Versioner

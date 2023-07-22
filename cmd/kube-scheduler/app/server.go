@@ -137,16 +137,32 @@ func runCommand(cmd *cobra.Command, opts *options.Options, registryOptions ...Op
 		cancel()
 	}()
 
+	// 作用是将命令行参数转换成配置文件，如果配置文件中有相同的参数，会覆盖命令行参数
+	// cc 是一个 CompletedConfig 结构体，包含了所有的配置信息
+	// sched 是一个 Scheduler 结构体，包含了所有的调度逻辑
 	cc, sched, err := Setup(ctx, opts, registryOptions...)
 	if err != nil {
 		return err
 	}
 	// add feature enablement metrics
+	// 添加一些 metrics
 	utilfeature.DefaultMutableFeatureGate.AddMetrics()
 	return Run(ctx, cc, sched)
 }
 
 // Run executes the scheduler based on the given configuration. It only returns on error or when context is done.
+// Run 执行调度器，基于给定的配置，只有在出错或者上下文结束时才会返回
+// 步骤：
+// 1. 注册 configz
+// 2. 启动事件处理管道
+// 3. 设置健康检查
+// 4. 启动调度器
+// 5. 启动 metrics
+// 6. 启动 http server
+// 7. 启动 profiling
+// 8. 启动 leader election
+// 9. 启动 informer
+// 10. 启动调度器sched
 func Run(ctx context.Context, cc *schedulerserverconfig.CompletedConfig, sched *scheduler.Scheduler) error {
 	logger := klog.FromContext(ctx)
 
@@ -156,6 +172,7 @@ func Run(ctx context.Context, cc *schedulerserverconfig.CompletedConfig, sched *
 	logger.Info("Golang settings", "GOGC", os.Getenv("GOGC"), "GOMAXPROCS", os.Getenv("GOMAXPROCS"), "GOTRACEBACK", os.Getenv("GOTRACEBACK"))
 
 	// Configz registration.
+	// 注册 configz
 	if cz, err := configz.New("componentconfig"); err == nil {
 		cz.Set(cc.ComponentConfig)
 	} else {
@@ -163,6 +180,7 @@ func Run(ctx context.Context, cc *schedulerserverconfig.CompletedConfig, sched *
 	}
 
 	// Start events processing pipeline.
+	// 启动事件处理Broadcaster
 	cc.EventBroadcaster.StartRecordingToSink(ctx.Done())
 	defer cc.EventBroadcaster.Shutdown()
 
@@ -185,6 +203,7 @@ func Run(ctx context.Context, cc *schedulerserverconfig.CompletedConfig, sched *
 	}
 
 	// Start up the healthz server.
+	// 启动健康检查
 	if cc.SecureServing != nil {
 		handler := buildHandlerChain(newHealthzAndMetricsHandler(&cc.ComponentConfig, cc.InformerFactory, isLeader, checks...), cc.Authentication.Authenticator, cc.Authorization.Authorizer)
 		// TODO: handle stoppedCh and listenerStoppedCh returned by c.SecureServing.Serve
@@ -194,32 +213,40 @@ func Run(ctx context.Context, cc *schedulerserverconfig.CompletedConfig, sched *
 		}
 	}
 
+	// 启用 metrics
 	startInformersAndWaitForSync := func(ctx context.Context) {
 		// Start all informers.
+		// 启动 informer
 		cc.InformerFactory.Start(ctx.Done())
 		// DynInformerFactory can be nil in tests.
 		if cc.DynInformerFactory != nil {
+			// Start all informers.
 			cc.DynInformerFactory.Start(ctx.Done())
 		}
 
 		// Wait for all caches to sync before scheduling.
+		// 等待所有的缓存同步完成
 		cc.InformerFactory.WaitForCacheSync(ctx.Done())
 		// DynInformerFactory can be nil in tests.
 		if cc.DynInformerFactory != nil {
+			// Wait for all caches to sync before scheduling.
 			cc.DynInformerFactory.WaitForCacheSync(ctx.Done())
 		}
 
 		// Wait for all handlers to sync (all items in the initial list delivered) before scheduling.
+		// 等待所有的 handler 同步完成
 		if err := sched.WaitForHandlersSync(ctx); err != nil {
 			logger.Error(err, "waiting for handlers to sync")
 		}
 
 		logger.V(3).Info("Handlers synced")
 	}
+	// If leader election（选举） is disabled, start informers and wait for sync.
 	if !cc.ComponentConfig.DelayCacheUntilActive || cc.LeaderElection == nil {
 		startInformersAndWaitForSync(ctx)
 	}
 	// If leader election is enabled, runCommand via LeaderElector until done and exit.
+	// 调度器启动
 	if cc.LeaderElection != nil {
 		cc.LeaderElection.Callbacks = leaderelection.LeaderCallbacks{
 			OnStartedLeading: func(ctx context.Context) {

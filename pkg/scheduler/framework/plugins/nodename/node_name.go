@@ -53,6 +53,7 @@ func (pl *NodeName) Name() string {
 }
 
 // Filter invoked at the filter extension point.
+// 调度核心逻辑
 func (pl *NodeName) Filter(ctx context.Context, _ *framework.CycleState, pod *v1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
 
 	if !Fits(pod, nodeInfo) {

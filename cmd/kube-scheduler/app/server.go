@@ -378,6 +378,7 @@ func Setup(ctx context.Context, opts *options.Options, outOfTreeRegistryOptions 
 	recorderFactory := getRecorderFactory(&cc)
 	completedProfiles := make([]kubeschedulerconfig.KubeSchedulerProfile, 0)
 	// Create the scheduler.
+	// 作用：创建调度器
 	sched, err := scheduler.New(ctx,
 		cc.Client,
 		cc.InformerFactory,

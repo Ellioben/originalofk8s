@@ -254,8 +254,9 @@ func New(ctx context.Context,
 	opts ...Option) (*Scheduler, error) {
 
 	logger := klog.FromContext(ctx)
+	// stopEverything is used to stop all the informers.（single）
 	stopEverything := ctx.Done()
-
+	//填充默认值
 	options := defaultSchedulerOptions
 	for _, opt := range opts {
 		opt(&options)
@@ -271,7 +272,10 @@ func New(ctx context.Context,
 		options.profiles = cfg.Profiles
 	}
 
+	// NewInTreeRegistry作用是将默认的调度器算法注册到registry中，
+	//registry的本质是一个map，key是调度器算法的名字，value是调度器算法的实现。
 	registry := frameworkplugins.NewInTreeRegistry()
+	//Merge的作用是将frameworkOutOfTreeRegistry中的算法也注册到registry中，也是注册到map中。
 	if err := registry.Merge(options.frameworkOutOfTreeRegistry); err != nil {
 		return nil, err
 	}
@@ -286,9 +290,11 @@ func New(ctx context.Context,
 	podLister := informerFactory.Core().V1().Pods().Lister()
 	nodeLister := informerFactory.Core().V1().Nodes().Lister()
 
+	//snapshot是空缓存，用于存储pod和node的信息，这些信息是从kube-apiserver中获取的。
 	snapshot := internalcache.NewEmptySnapshot()
 	metricsRecorder := metrics.NewMetricsAsyncRecorder(1000, time.Second, stopEverything)
 
+	//初始化profiles，profiles是一个map，key是profile的名字，value是profile的实现。
 	profiles, err := profile.NewMap(ctx, options.profiles, registry, recorderFactory,
 		frameworkruntime.WithComponentConfigVersion(options.componentConfigVersion),
 		frameworkruntime.WithClientSet(client),
@@ -315,6 +321,7 @@ func New(ctx context.Context,
 		queueingHintsPerProfile[profileName] = buildQueueingHintMap(profile.EnqueueExtensions())
 	}
 
+	//	初始化podQueue，podQueue是一个优先队列，用于存储pod，优先队列的优先级是根据pod的优先级来确定的。
 	podQueue := internalqueue.NewSchedulingQueue(
 		profiles[options.profiles[0].SchedulerName].QueueSortFunc(),
 		informerFactory,
@@ -332,12 +339,14 @@ func New(ctx context.Context,
 		fwk.SetPodNominator(podQueue)
 	}
 
+	//初始化schedulerCache，schedulerCache是一个缓存，用于存储pod和node的信息，这些信息是从kube-apiserver中获取的。
 	schedulerCache := internalcache.New(ctx, durationToExpireAssumedPod)
 
 	// Setup cache debugger.
 	debugger := cachedebugger.New(nodeLister, podLister, schedulerCache, podQueue)
 	debugger.ListenForSignal(ctx)
 
+	//初始化scheduler，scheduler是调度器的实现。
 	sched := &Scheduler{
 		Cache:                    schedulerCache,
 		client:                   client,
@@ -352,6 +361,7 @@ func New(ctx context.Context,
 	}
 	sched.applyDefaultHandlers()
 
+	// addAllEventHandlers是将所有的事件处理器添加到sched中。
 	if err = addAllEventHandlers(sched, informerFactory, dynInformerFactory, unionedGVKs(queueingHintsPerProfile)); err != nil {
 		return nil, fmt.Errorf("adding event handlers: %w", err)
 	}

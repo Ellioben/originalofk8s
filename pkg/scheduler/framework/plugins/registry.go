@@ -45,6 +45,9 @@ import (
 // NewInTreeRegistry builds the registry with all the in-tree plugins.
 // A scheduler that runs out of tree plugins can register additional plugins
 // through the WithFrameworkOutOfTreeRegistry option.
+// 注册表是一个插件工厂的集合，每个插件工厂都可以创建一个插件。常用的调度算法注册进去
+//NewInTreeRegistry 使用所有树内插件构建注册表。
+//用完树插件的调度程序可以通过 WithFrameworkOutOfTreeRegistry 选项注册其他插件。
 func NewInTreeRegistry() runtime.Registry {
 	fts := plfeature.Features{
 		EnableDynamicResourceAllocation:              feature.DefaultFeatureGate.Enabled(features.DynamicResourceAllocation),

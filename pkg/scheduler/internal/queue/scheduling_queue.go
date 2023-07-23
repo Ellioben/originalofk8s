@@ -359,6 +359,7 @@ func (p *PriorityQueue) Run(logger klog.Logger) {
 // the scheduling queue is supposed to enqueue this Pod to activeQ/backoffQ depending on the remaining backoff time of the Pod.
 // If all QueueingHintFn returns QueueSkip, the scheduling queue enqueues the Pod back to unschedulable Pod pool
 // because no plugin changes the scheduling result via the event.
+// 这个是判断pod是否需要重新入队列的函数
 func (p *PriorityQueue) isPodWorthRequeuing(logger klog.Logger, pInfo *framework.QueuedPodInfo, event framework.ClusterEvent, oldObj, newObj interface{}) framework.QueueingHint {
 	if pInfo.UnschedulablePlugins.Len() == 0 {
 		logger.V(6).Info("Worth requeuing because no unschedulable plugins", "pod", klog.KObj(pInfo.Pod))

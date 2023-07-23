@@ -302,6 +302,7 @@ func (sched *Scheduler) handleBindingCycleError(
 
 	assumedPod := podInfo.Pod
 	// trigger un-reserve plugins to clean up state associated with the reserved Pod
+	// 触发取消保留插件来清理与保留 Pod 关联的状态
 	fwk.RunReservePluginsUnreserve(ctx, state, assumedPod, scheduleResult.SuggestedHost)
 	if forgetErr := sched.Cache.ForgetPod(logger, assumedPod); forgetErr != nil {
 		logger.Error(forgetErr, "scheduler cache ForgetPod failed")
@@ -876,6 +877,8 @@ func (sched *Scheduler) assume(logger klog.Logger, assumed *v1.Pod, host string)
 // bind binds a pod to a given node defined in a binding object.
 // The precedence for binding is: (1) extenders and (2) framework plugins.
 // We expect this to run asynchronously, so we handle binding metrics internally.
+//绑定将 Pod 绑定到绑定对象中定义的给定节点。
+//绑定的优先级是：（1） 扩展器和 （2） 框架插件。我们希望它异步运行，因此我们在内部处理绑定指标。
 func (sched *Scheduler) bind(ctx context.Context, fwk framework.Framework, assumed *v1.Pod, targetNode string, state *framework.CycleState) (status *framework.Status) {
 	logger := klog.FromContext(ctx)
 	defer func() {
@@ -895,6 +898,7 @@ func (sched *Scheduler) extendersBinding(pod *v1.Pod, node string) (bool, error)
 		if !extender.IsBinder() || !extender.IsInterested(pod) {
 			continue
 		}
+		// Bind 用来绑定 Pod 到 Node 上，如果绑定成功，返回 true，否则返回 false
 		return true, extender.Bind(&v1.Binding{
 			ObjectMeta: metav1.ObjectMeta{Namespace: pod.Namespace, Name: pod.Name, UID: pod.UID},
 			Target:     v1.ObjectReference{Kind: "Node", Name: node},

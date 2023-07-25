@@ -389,6 +389,7 @@ func NewKubectlCommand(o KubectlOptions) *cobra.Command {
 		{
 			Message: "Basic Commands (Beginner):",
 			Commands: []*cobra.Command{
+				//>>
 				create.NewCmdCreate(f, o.IOStreams),
 				expose.NewCmdExposeService(f, o.IOStreams),
 				run.NewCmdRun(f, o.IOStreams),

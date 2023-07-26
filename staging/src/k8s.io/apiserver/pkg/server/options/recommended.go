@@ -140,6 +140,7 @@ func (o *RecommendedOptions) ApplyTo(config *server.RecommendedConfig) error {
 	if err != nil {
 		return err
 	}
+	// 作用是将所有的 AdmissionOptions 都添加到 Admission 中
 	if err := o.Admission.ApplyTo(&config.Config, config.SharedInformerFactory, kubeClient, dynamicClient, o.FeatureGate,
 		initializers...); err != nil {
 		return err

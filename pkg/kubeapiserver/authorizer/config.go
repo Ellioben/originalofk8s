@@ -76,12 +76,16 @@ func (config Config) New() (authorizer.Authorizer, authorizer.RuleResolver, erro
 	}
 
 	var (
+		// authorizers是认证器的集合，ruleResolvers是规则解析器的集合
 		authorizers   []authorizer.Authorizer
+		// ruleResolvers是规则解析器的集合
 		ruleResolvers []authorizer.RuleResolver
 	)
 
 	// Add SystemPrivilegedGroup as an authorizing group
+	//	将SystemPrivilegedGroup作为授权组添加到authorizers中
 	superuserAuthorizer := authorizerfactory.NewPrivilegedGroups(user.SystemPrivilegedGroup)
+	// 将superuserAuthorizer添加到authorizers中
 	authorizers = append(authorizers, superuserAuthorizer)
 
 	for _, authorizationMode := range config.AuthorizationModes {

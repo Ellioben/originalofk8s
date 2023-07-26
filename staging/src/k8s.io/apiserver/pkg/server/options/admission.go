@@ -148,6 +148,7 @@ func (a *AdmissionOptions) ApplyTo(
 	initializersChain := admission.PluginInitializers{genericInitializer}
 	initializersChain = append(initializersChain, pluginInitializers...)
 
+	// 自定义配置
 	admissionChain, err := a.Plugins.NewFromPlugins(pluginNames, pluginsConfigProvider, initializersChain, a.Decorators)
 	if err != nil {
 		return err

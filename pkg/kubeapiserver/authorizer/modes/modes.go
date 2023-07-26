@@ -18,6 +18,7 @@ package modes
 
 import "k8s.io/apimachinery/pkg/util/sets"
 
+// 授权模式
 const (
 	// ModeAlwaysAllow is the mode to set all requests as authorized
 	ModeAlwaysAllow string = "AlwaysAllow"

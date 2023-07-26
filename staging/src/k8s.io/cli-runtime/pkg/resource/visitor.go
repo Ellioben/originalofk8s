@@ -577,6 +577,7 @@ func (v *StreamVisitor) Visit(fn VisitorFunc) error {
 		if err := ValidateSchema(ext.Raw, v.Schema); err != nil {
 			return fmt.Errorf("error validating %q: %v", v.Source, err)
 		}
+		//  这里就是返回info的地方	，主要作用是将ext.Raw转换成info
 		info, err := v.infoForData(ext.Raw, v.Source)
 		if err != nil {
 			if fnErr := fn(info, err); fnErr != nil {

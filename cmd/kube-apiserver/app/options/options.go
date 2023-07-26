@@ -63,6 +63,7 @@ type Extra struct {
 // NewServerRunOptions creates a new ServerRunOptions object with default parameters
 func NewServerRunOptions() *ServerRunOptions {
 	s := ServerRunOptions{
+		// controlplaneapiserver.NewOptions() 是控制平面的 apiserver 的配置
 		Options:       controlplaneapiserver.NewOptions(),
 		CloudProvider: kubeoptions.NewCloudProviderOptions(),
 

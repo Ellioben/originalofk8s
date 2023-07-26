@@ -121,6 +121,7 @@ cluster's shared state through which all other components interact.`,
 			// >>>
 			return Run(completedOptions, genericapiserver.SetupSignalHandler())
 		},
+		// kube-apiserver的参数
 		Args: func(cmd *cobra.Command, args []string) error {
 			for _, arg := range args {
 				if len(arg) > 0 {
@@ -169,7 +170,7 @@ func Run(opts options.CompletedOptions, stopCh <-chan struct{}) error {
 	if err != nil {
 		return err
 	}
-
+	// server.PrepareRun()是一个阻塞的方法，直到stopCh被关闭
 	prepared, err := server.PrepareRun()
 	if err != nil {
 		return err
@@ -247,7 +248,9 @@ func CreateKubeAPIServerConfig(opts options.CompletedOptions) (
 	serviceaccount.RegisterMetrics()
 
 	config := &controlplane.Config{
+		// 通用的config
 		GenericConfig: genericConfig,
+		// 额外的config 1. api资源的config 2. storageFactory
 		ExtraConfig: controlplane.ExtraConfig{
 			APIResourceConfigSource: storageFactory.APIResourceConfigSource,
 			StorageFactory:          storageFactory,

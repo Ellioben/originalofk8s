@@ -78,6 +78,7 @@ func BuildGenericConfig(
 	if lastErr = s.APIEnablement.ApplyTo(genericConfig, controlplane.DefaultAPIResourceConfigSource(), legacyscheme.Scheme); lastErr != nil {
 		return
 	}
+	//ApplyTo()方法中会将s.APIResourceConfigSource赋值给genericConfig.MergedResourceConfig
 	if lastErr = s.EgressSelector.ApplyTo(genericConfig); lastErr != nil {
 		return
 	}

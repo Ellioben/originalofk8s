@@ -54,6 +54,8 @@ import (
 type SharedInformerOption func(*sharedInformerFactory) *sharedInformerFactory
 
 // 这个是一个工厂类，用于创建各种informer
+// 定义了 Shared Informer，其中这个client是用来连接kube-apiserver的
+// 用于创建各种informer(对应start)
 type sharedInformerFactory struct {
 	client           kubernetes.Interface
 	namespace        string
@@ -102,6 +104,7 @@ func WithNamespace(namespace string) SharedInformerOption {
 
 // NewSharedInformerFactory constructs a new instance of sharedInformerFactory for all namespaces.
 // 创建一个工厂类，用于创建各种informer
+// 定义了 Shared Informer，其中这个client是用来连接kube-apiserver的
 func NewSharedInformerFactory(client kubernetes.Interface, defaultResync time.Duration) SharedInformerFactory {
 	return NewSharedInformerFactoryWithOptions(client, defaultResync)
 }

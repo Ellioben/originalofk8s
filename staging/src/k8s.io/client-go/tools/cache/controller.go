@@ -104,6 +104,7 @@ type Controller interface {
 	// on that Queue.  The other is to repeatedly Pop from the Queue
 	// and process with the Config's ProcessFunc.  Both of these
 	// continue until `stopCh` is closed.
+	// 11111
 	Run(stopCh <-chan struct{})
 
 	// HasSynced delegates to the Config's Queue

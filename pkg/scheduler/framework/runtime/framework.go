@@ -1168,6 +1168,7 @@ func (f *frameworkImpl) runPreBindPlugin(ctx context.Context, pl framework.PreBi
 }
 
 // RunBindPlugins runs the set of configured bind plugins until one returns a non `Skip` status.
+// RunBindPlugins是运行配置的绑定插件集，直到其中一个返回非“Skip”状态。
 func (f *frameworkImpl) RunBindPlugins(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) (status *framework.Status) {
 	startTime := time.Now()
 	defer func() {
@@ -1185,6 +1186,7 @@ func (f *frameworkImpl) RunBindPlugins(ctx context.Context, state *framework.Cyc
 	for _, pl := range f.bindPlugins {
 		logger := klog.LoggerWithName(logger, pl.Name())
 		ctx := klog.NewContext(ctx, logger)
+		// Run the plugin
 		status = f.runBindPlugin(ctx, pl, state, pod, nodeName)
 		if status.IsSkip() {
 			continue
@@ -1204,6 +1206,7 @@ func (f *frameworkImpl) RunBindPlugins(ctx context.Context, state *framework.Cyc
 	return status
 }
 
+// runBindPlugin的作用是运行绑定插件
 func (f *frameworkImpl) runBindPlugin(ctx context.Context, bp framework.BindPlugin, state *framework.CycleState, pod *v1.Pod, nodeName string) *framework.Status {
 	if !state.ShouldRecordPluginMetrics() {
 		return bp.Bind(ctx, state, pod, nodeName)

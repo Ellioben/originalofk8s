@@ -128,6 +128,7 @@ func New(c *Config) Controller {
 // Run begins processing items, and will continue until a value is sent down stopCh or it is closed.
 // It's an error to call Run more than once.
 // Run blocks; call via go.
+//
 func (c *controller) Run(stopCh <-chan struct{}) {
 	defer utilruntime.HandleCrash()
 	go func() {
@@ -192,6 +193,7 @@ func (c *controller) LastSyncResourceVersion() string {
 
 func (c *controller) processLoop() {
 	for {
+		// PopProcessFunc 是一个函数类型，它的作用是从 DeltaFIFO 中取出一个对象，然后调用 c.config.Process 处理该对象
 		obj, err := c.config.Queue.Pop(PopProcessFunc(c.config.Process))
 		if err != nil {
 			if err == ErrFIFOClosed {
@@ -241,7 +243,7 @@ type ResourceEventHandlerFuncs struct {
 }
 
 // OnAdd calls AddFunc if it's not nil.
-func (r ResourceEventHandlerFuncs) OnAdd(obj interface{}, isInInitialList bool) {
+func (r ResourceEventHandlerFuncs) OnAdd(obj interface{}) {
 	if r.AddFunc != nil {
 		r.AddFunc(obj)
 	}
@@ -454,12 +456,14 @@ func processDeltas(
 
 		switch d.Type {
 		case Sync, Replaced, Added, Updated:
+			// 如果 clientState 中已经存在 obj，那么就更新 obj
 			if old, exists, err := clientState.Get(obj); err == nil && exists {
 				if err := clientState.Update(obj); err != nil {
 					return err
 				}
 				handler.OnUpdate(old, obj)
 			} else {
+				// 否则就添加 obj
 				if err := clientState.Add(obj); err != nil {
 					return err
 				}

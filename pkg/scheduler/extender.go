@@ -356,6 +356,7 @@ func (h *HTTPExtender) Prioritize(pod *v1.Pod, nodes []*v1.Node) (*extenderv1.Ho
 }
 
 // Bind delegates the action of binding a pod to a node to the extender.
+// 绑定扩展器
 func (h *HTTPExtender) Bind(binding *v1.Binding) error {
 	var result extenderv1.ExtenderBindingResult
 	if !h.IsBinder() {

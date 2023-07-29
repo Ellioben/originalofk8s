@@ -352,19 +352,21 @@ func New(ctx context.Context,
 	sched := &Scheduler{
 		Cache:                    schedulerCache,
 		client:                   client,
+		// 算法的注册表
 		nodeInfoSnapshot:         snapshot,
 		percentageOfNodesToScore: options.percentageOfNodesToScore,
 		Extenders:                extenders,
 		// NextPod是一个函数，用于从podQueue中获取pod，然后调用scheduleOne函数对pod进行调度。
 		NextPod:         internalqueue.MakeNextPodFunc(logger, podQueue),
 		StopEverything:  stopEverything,
+		// podQueue是一个优先队列，用于存储pod，优先队列的优先级是根据pod的优先级来确定的。
 		SchedulingQueue: podQueue,
 		Profiles:        profiles,
 		logger:          logger,
 	}
 	sched.applyDefaultHandlers()
 
-	// addAllEventHandlers是将所有的事件处理器添加到sched中。
+	// addAllEventHandlers是将所有不同资源的处理器handler添加到sched中。
 	if err = addAllEventHandlers(sched, informerFactory, dynInformerFactory, unionedGVKs(queueingHintsPerProfile)); err != nil {
 		return nil, fmt.Errorf("adding event handlers: %w", err)
 	}

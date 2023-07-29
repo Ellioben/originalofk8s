@@ -64,6 +64,15 @@ const (
 )
 
 // scheduleOne does the entire scheduling workflow for a single pod. It is serialized on the scheduling algorithm's host fitting.
+// scheduleOne作用于单个pod，它是在调度算法的主机适配上串行化的。
+// 步骤：
+//1. 从调度队列中获取一个pod
+//2. 选择一个调度框架
+//3. 调用调度框架的ScheduleOne方法
+//4. 如果调度成功，那么就将pod绑定到指定的节点上
+//5. 如果调度失败，那么就将pod放回调度队列中
+//6. 如果调度队列中没有pod了，那么就结束调度
+//7. 如果调度队列中还有pod，那么就继续调度
 func (sched *Scheduler) scheduleOne(ctx context.Context) {
 	logger := klog.FromContext(ctx)
 	podInfo := sched.NextPod()
@@ -74,6 +83,7 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 	pod := podInfo.Pod
 	// frameworkForPod 是一个调度框架，它会根据 pod 的 spec 中的 schedulerName 字段来选择调度框架，
 	//比如 pod.spec.schedulerName = "default-scheduler"，那么就会选择 default-scheduler 调度框架。
+	// 选举pod的时候会用到
 	fwk, err := sched.frameworkForPod(pod)
 	if err != nil {
 		// This shouldn't happen, because we only accept for scheduling the pods
@@ -102,6 +112,7 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 	defer cancel()
 
 	// schedulingCycle是调度的核心函数，它会调用调度框架的 Filter 和 Score 函数，然后根据调度框架的优先级队列来选择最优的节点。
+	// 包括监测，过滤，评分，优先级队列，选择最优节点，深拷贝，假定成功（sched.assume）等。
 	scheduleResult, assumedPodInfo, status := sched.schedulingCycle(schedulingCycleCtx, state, fwk, podInfo, start, podsToActivate)
 	if !status.IsSuccess() {
 		sched.FailureHandler(schedulingCycleCtx, fwk, assumedPodInfo, status, scheduleResult.nominatingInfo, start)
@@ -109,6 +120,7 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 	}
 
 	// bind the pod to its host asynchronously (we can do this b/c of the assumption step above).
+	// 	将pod异步绑定到它的主机（我们可以这样做，因为上面的假设步骤）。
 	go func() {
 		bindingCycleCtx, cancel := context.WithCancel(ctx)
 		defer cancel()
@@ -145,7 +157,7 @@ func (sched *Scheduler) schedulingCycle(
 ) (ScheduleResult, *framework.QueuedPodInfo, *framework.Status) {
 	logger := klog.FromContext(ctx)
 	pod := podInfo.Pod
-	// 1. 调用调度框架的 Filter 函数，过滤掉不符合要求的节点。
+	// 1. 调用调度框架的 Filter & Source函数，过滤掉不符合要求的节点。
 	scheduleResult, err := sched.SchedulePod(ctx, fwk, state, pod)
 	if err != nil {
 		if err == ErrNoNodesAvailable {
@@ -185,14 +197,18 @@ func (sched *Scheduler) schedulingCycle(
 		}
 		return ScheduleResult{nominatingInfo: nominatingInfo}, podInfo, framework.NewStatus(framework.Unschedulable).WithError(err)
 	}
-
+	// 	metrics.SchedulingAlgorithmLatency.Observe(metrics.SinceInSeconds(start))
+	//	是一个 prometheus 的函数，它会根据传入的参数来生成一个 metrics 的 label。
 	metrics.SchedulingAlgorithmLatency.Observe(metrics.SinceInSeconds(start))
 	// Tell the cache to assume that a pod now is running on a given node, even though it hasn't been bound yet.
 	// This allows us to keep scheduling without waiting on binding to occur.
+	// 是pop弹出来的，所以需要深拷贝一份。不然复制不到关键信息
 	assumedPodInfo := podInfo.DeepCopy()
 	assumedPod := assumedPodInfo.Pod
 	// assume modifies `assumedPod` by setting NodeName=scheduleResult.SuggestedHost
+	// assume：假定
 	// assume是一个假设函数，它会将 pod 绑定到指定的节点上。
+	// 验证机器上是否有足够的资源，如果有，那么就将 pod 绑定到这个节点上。（避免机器自身的机制导致创建拒绝）
 	err = sched.assume(logger, assumedPod, scheduleResult.SuggestedHost)
 	if err != nil {
 		// This is most probably result of a BUG in retrying logic.
@@ -219,6 +235,7 @@ func (sched *Scheduler) schedulingCycle(
 	}
 
 	// Run "permit" plugins.
+	// RunPermitPlugins是绑定前调度框架的 Permit 函数，它会检查节点上是否有足够的资源，如果有，那么就将 pod 绑定到这个节点上。
 	runPermitStatus := fwk.RunPermitPlugins(ctx, state, assumedPod, scheduleResult.SuggestedHost)
 	if !runPermitStatus.IsWait() && !runPermitStatus.IsSuccess() {
 		// trigger un-reserve to clean up state associated with the reserved Pod
@@ -370,7 +387,7 @@ func (sched *Scheduler) schedulePod(ctx context.Context, fwk framework.Framework
 	if sched.nodeInfoSnapshot.NumNodes() == 0 {
 		return result, ErrNoNodesAvailable
 	}
-	// 查找适合 Pod 的节点
+	// 查找适合pridict Pod 的节点
 	feasibleNodes, diagnosis, err := sched.findNodesThatFitPod(ctx, fwk, state, pod)
 	if err != nil {
 		return result, err
@@ -395,7 +412,7 @@ func (sched *Scheduler) schedulePod(ctx context.Context, fwk framework.Framework
 		}, nil
 	}
 
-	// 优先级排序(进行打分)	// 选择最高分的节点，如果有多个最高分的节点，随机选择一个
+	// 优先级排序priority(进行打分)	// 选择最高分的节点，如果有多个最高分的节点，随机选择一个
 	priorityList, err := prioritizeNodes(ctx, sched.Extenders, fwk, state, pod, feasibleNodes)
 	if err != nil {
 		return result, err
@@ -413,6 +430,7 @@ func (sched *Scheduler) schedulePod(ctx context.Context, fwk framework.Framework
 
 // Filters the nodes to find the ones that fit the pod based on the framework
 // filter plugins and filter extenders.
+// 根据框架过滤插件和过滤扩展程序过滤节点，以找到适合 Pod 的节点。
 func (sched *Scheduler) findNodesThatFitPod(ctx context.Context, fwk framework.Framework, state *framework.CycleState, pod *v1.Pod) ([]*v1.Node, framework.Diagnosis, error) {
 	logger := klog.FromContext(ctx)
 	diagnosis := framework.Diagnosis{

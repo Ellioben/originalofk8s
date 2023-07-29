@@ -653,7 +653,7 @@ func (s *sharedIndexInformer) OnAdd(obj interface{}, isInInitialList bool) {
 	// Invocation of this function is locked under s.blockDeltas, so it is
 	// save to distribute the notification
 	s.cacheMutationDetector.AddObject(obj)
-	s.processor.distribute(addNotification{newObj: obj, isInInitialList: isInInitialList}, false)
+	s.processor.distribute()
 }
 
 // Conforms to ResourceEventHandler
@@ -675,14 +675,15 @@ func (s *sharedIndexInformer) OnUpdate(old, new interface{}) {
 	// Invocation of this function is locked under s.blockDeltas, so it is
 	// save to distribute the notification
 	s.cacheMutationDetector.AddObject(new)
-	s.processor.distribute(updateNotification{oldObj: old, newObj: new}, isSync)
+	s.processor.distribute()
 }
 
 // Conforms to ResourceEventHandler
+// informerde的start阻塞的时候，碰到新请求，处理完store后，会调用OnDelete，这个时候会调用processor.distribute
 func (s *sharedIndexInformer) OnDelete(old interface{}) {
 	// Invocation of this function is locked under s.blockDeltas, so it is
 	// save to distribute the notification
-	s.processor.distribute(deleteNotification{oldObj: old}, false)
+	s.processor.distribute()
 }
 
 // IsStopped reports whether the informer has already been stopped
@@ -712,9 +713,12 @@ func (s *sharedIndexInformer) RemoveEventHandler(handle ResourceEventHandlerRegi
 // calls to shouldResync and (b) every listener is initially put in.
 // The non-sync distributions go to every listener.
 type sharedProcessor struct {
+	// lister是否启用运行
 	listenersStarted bool
-	listenersLock    sync.RWMutex
+	// 保证数据一致性
+	listenersLock sync.RWMutex
 	// Map from listeners to whether or not they are currently syncing
+	// 从侦听器映射到它们当前是否正在同步
 	listeners map[*processorListener]bool
 	clock     clock.Clock
 	wg        wait.Group
@@ -787,9 +791,11 @@ func (p *sharedProcessor) distribute(obj interface{}, sync bool) {
 		switch {
 		case !sync:
 			// non-sync messages are delivered to every listener
+			// 将非同步消息传送到每个侦听器
 			listener.add(obj)
 		case isSyncing:
 			// sync messages are delivered to every syncing listener
+			// 同步消息传递到每个同步侦听器
 			listener.add(obj)
 		default:
 			// skipping a sync obj for a non-syncing listener

@@ -72,6 +72,7 @@ func startReplicaSetController(ctx context.Context, controllerContext Controller
 		controllerContext.InformerFactory.Core().V1().Pods(),
 		controllerContext.ClientBuilder.ClientOrDie("replicaset-controller"),
 		replicaset.BurstReplicas,
+		// int(controllerContext.ComponentConfig.ReplicaSetController.ConcurrentRSSyncs)是
 	).Run(ctx, int(controllerContext.ComponentConfig.ReplicaSetController.ConcurrentRSSyncs))
 	return nil, true, nil
 }

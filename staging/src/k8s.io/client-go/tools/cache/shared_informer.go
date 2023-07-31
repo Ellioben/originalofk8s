@@ -653,7 +653,7 @@ func (s *sharedIndexInformer) OnAdd(obj interface{}, isInInitialList bool) {
 	// Invocation of this function is locked under s.blockDeltas, so it is
 	// save to distribute the notification
 	s.cacheMutationDetector.AddObject(obj)
-	s.processor.distribute()
+	s.processor.distribute(obj, true)
 }
 
 // Conforms to ResourceEventHandler

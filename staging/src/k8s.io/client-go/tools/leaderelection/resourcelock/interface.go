@@ -163,6 +163,7 @@ type Interface interface {
 }
 
 // Manufacture will create a lock of a given type according to the input parameters
+// 作用：根据输入参数创建给定类型的锁
 func New(lockType string, ns string, name string, coreClient corev1.CoreV1Interface, coordinationClient coordinationv1.CoordinationV1Interface, rlc ResourceLockConfig) (Interface, error) {
 	leaseLock := &LeaseLock{
 		LeaseMeta: metav1.ObjectMeta{

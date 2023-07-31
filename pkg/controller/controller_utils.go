@@ -218,6 +218,7 @@ func (exp *ControlleeExpectations) isExpired() bool {
 }
 
 // SetExpectations registers new expectations for the given controller. Forgets existing expectations.
+// 期望是一个控制器告诉控制器管理器它们期望的一种方式
 func (r *ControllerExpectations) SetExpectations(controllerKey string, add, del int) error {
 	exp := &ControlleeExpectations{add: int64(add), del: int64(del), key: controllerKey, timestamp: clock.RealClock{}.Now()}
 	klog.V(4).InfoS("Setting expectations", "expectations", exp)

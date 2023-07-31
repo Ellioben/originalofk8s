@@ -366,6 +366,7 @@ func (d *DiscoveryClient) ServerGroups() (*metav1.APIGroupList, error) {
 }
 
 // ServerResourcesForGroupVersion returns the supported resources for a group and version.
+// 发现资源
 func (d *DiscoveryClient) ServerResourcesForGroupVersion(groupVersion string) (resources *metav1.APIResourceList, err error) {
 	url := url.URL{}
 	if len(groupVersion) == 0 {
@@ -458,6 +459,7 @@ func ServerGroupsAndResources(d DiscoveryInterface) ([]*metav1.APIGroup, []*meta
 		return resultGroups, resources, ferr
 	}
 
+	// discover发现的资源
 	groupVersionResources, failedGroups := fetchGroupVersionResources(d, sgs)
 
 	// order results by group/version discovery order

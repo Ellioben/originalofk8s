@@ -1420,6 +1420,8 @@ func (kl *Kubelet) setupDataDirs() error {
 }
 
 // StartGarbageCollection starts garbage collection threads.
+//Garbage：垃圾
+// StartGarbageCollection是启动垃圾回收线程
 func (kl *Kubelet) StartGarbageCollection() {
 	loggedContainerGCFailure := false
 	go wait.Until(func() {

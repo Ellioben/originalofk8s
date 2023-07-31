@@ -235,7 +235,10 @@ func Run(ctx context.Context, c *config.CompletedConfig) error {
 
 	saTokenControllerInitFunc := serviceAccountTokenControllerStarter{rootClientBuilder: rootClientBuilder}.startServiceAccountTokenController
 
+
+	// 定义run启controller
 	run := func(ctx context.Context, startSATokenController InitFunc, initializersFunc ControllerInitializersFunc) {
+
 		controllerContext, err := CreateControllerContext(logger, c, rootClientBuilder, clientBuilder, ctx.Done())
 		if err != nil {
 			logger.Error(err, "Error building controller context")
@@ -291,6 +294,7 @@ func Run(ctx context.Context, c *config.CompletedConfig) error {
 	}
 
 	// Start the main lock
+	// 开启leader election，和RunOrDie
 	go leaderElectAndRun(ctx, c, id, electionChecker,
 		c.ComponentConfig.Generic.LeaderElection.ResourceLock,
 		c.ComponentConfig.Generic.LeaderElection.ResourceName,
@@ -317,6 +321,9 @@ func Run(ctx context.Context, c *config.CompletedConfig) error {
 		// At this point, the main lock must have already been acquired, or the KCM process already exited.
 		// We wait for the main lock before acquiring the migration lock to prevent the situation
 		//  where KCM instance A holds the main lock while KCM instance B holds the migration lock.
+		//等待服务帐户令牌控制器启动，然后再获取迁移锁。
+		//此时，必须已获取主锁，
+		//或者 KCM 进程已退出。我们在获取迁移锁之前等待主锁，以防止 KCM 实例 A 持有主锁而 KCM 实例 B 持有迁移锁的情况。
 		<-leaderMigrator.MigrationReady
 
 		// Start the migration lock.
@@ -442,7 +449,6 @@ func NewControllerInitializers(loopMode ControllerLoopMode) map[string]InitFunc 
 		}
 		controllers[name] = fn
 	}
-
 	// 每个都是一个异步控制器，它会启动一个xxxController，然后调用Run方法，
 	//这个方法会启动一个工作队列，然后不断的从队列中取出任务，然后执行任务。
 	register(names.EndpointsController, startEndpointController)
@@ -457,6 +463,7 @@ func NewControllerInitializers(loopMode ControllerLoopMode) map[string]InitFunc 
 	register(names.DaemonSetController, startDaemonSetController)
 	register(names.JobController, startJobController)
 	register(names.DeploymentController, startDeploymentController)
+	//	ReplicaSetController                         = "replicaset-controller"
 	register(names.ReplicaSetController, startReplicaSetController)
 	register(names.HorizontalPodAutoscalerController, startHPAController)
 	register(names.DisruptionController, startDisruptionController)
@@ -531,6 +538,8 @@ func GetAvailableResources(clientBuilder clientbuilder.ControllerClientBuilder) 
 // CreateControllerContext creates a context struct containing references to resources needed by the
 // controllers such as the cloud provider and clientBuilder. rootClientBuilder is only used for
 // the shared-informers client and token controller.
+// CreateControllerContext是一个上下文结构，包含控制器所需的资源的引用，例如云提供程序和clientBuilder。
+// rootClientBuilder仅用于shared-informers客户端和令牌控制器。
 func CreateControllerContext(logger klog.Logger, s *config.CompletedConfig, rootClientBuilder, clientBuilder clientbuilder.ControllerClientBuilder, stop <-chan struct{}) (ControllerContext, error) {
 	versionedClient := rootClientBuilder.ClientOrDie("shared-informers")
 	sharedInformers := informers.NewSharedInformerFactory(versionedClient, ResyncPeriod(s)())
@@ -540,11 +549,14 @@ func CreateControllerContext(logger klog.Logger, s *config.CompletedConfig, root
 
 	// If apiserver is not running we should wait for some time and fail only then. This is particularly
 	// important when we start apiserver and controller manager at the same time.
+	// 如果 apiserver 没有运行，我们应该等待一段时间，然后才失败。
+	//当我们同时启动 apiserver 和控制器管理器时，这一点尤其重要。
 	if err := genericcontrollermanager.WaitForAPIServer(versionedClient, 10*time.Second); err != nil {
 		return ControllerContext{}, fmt.Errorf("failed to wait for apiserver being healthy: %v", err)
 	}
 
 	// Use a discovery client capable of being refreshed.
+	// 闯将一个能够刷新的discovery客户端。
 	discoveryClient := rootClientBuilder.DiscoveryClientOrDie("controller-discovery")
 	cachedClient := cacheddiscovery.NewMemCacheClient(discoveryClient)
 	restMapper := restmapper.NewDeferredDiscoveryRESTMapper(cachedClient)
@@ -557,6 +569,7 @@ func CreateControllerContext(logger klog.Logger, s *config.CompletedConfig, root
 		return ControllerContext{}, err
 	}
 
+	// 创建云提供程序
 	cloud, loopMode, err := createCloudProvider(logger, s.ComponentConfig.KubeCloudShared.CloudProvider.Name, s.ComponentConfig.KubeCloudShared.ExternalCloudVolumePlugin,
 		s.ComponentConfig.KubeCloudShared.CloudProvider.CloudConfigFile, s.ComponentConfig.KubeCloudShared.AllowUntaggedCloud, sharedInformers)
 	if err != nil {
@@ -747,7 +760,13 @@ func createClientBuilders(logger klog.Logger, c *config.CompletedConfig) (client
 
 // leaderElectAndRun runs the leader election, and runs the callbacks once the leader lease is acquired.
 // TODO: extract this function into staging/controller-manager
-func leaderElectAndRun(ctx context.Context, c *config.CompletedConfig, lockIdentity string, electionChecker *leaderelection.HealthzAdaptor, resourceLock string, leaseName string, callbacks leaderelection.LeaderCallbacks) {
+func leaderElectAndRun(ctx context.Context,
+	c *config.CompletedConfig,
+	lockIdentity string,
+	electionChecker *leaderelection.HealthzAdaptor,
+	resourceLock string,
+	leaseName string,
+	callbacks leaderelection.LeaderCallbacks) {
 	logger := klog.FromContext(ctx)
 	rl, err := resourcelock.NewFromKubeconfig(resourceLock,
 		c.ComponentConfig.Generic.LeaderElection.ResourceNamespace,
@@ -763,6 +782,7 @@ func leaderElectAndRun(ctx context.Context, c *config.CompletedConfig, lockIdent
 		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 	}
 
+	// 如果是leader就是run，如果被竞选掉了，就是die
 	leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
 		Lock:          rl,
 		LeaseDuration: c.ComponentConfig.Generic.LeaderElection.LeaseDuration.Duration,

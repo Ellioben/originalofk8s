@@ -144,6 +144,7 @@ func (c *ExpirationCache) ListKeys() []string {
 
 // Add timestamps an item and inserts it into the cache, overwriting entries
 // that might exist under the same key.
+// Add是期望的操作，但是Update没有实现，所以Update方法调用Add方法，这样就可以更新时间戳
 func (c *ExpirationCache) Add(obj interface{}) error {
 	key, err := c.keyFunc(obj)
 	if err != nil {
@@ -152,6 +153,7 @@ func (c *ExpirationCache) Add(obj interface{}) error {
 	c.expirationLock.Lock()
 	defer c.expirationLock.Unlock()
 
+	// 将对象封装并加上时间戳
 	c.cacheStorage.Add(key, &TimestampedEntry{obj, c.clock.Now(), key})
 	return nil
 }

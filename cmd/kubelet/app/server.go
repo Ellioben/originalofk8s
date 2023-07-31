@@ -417,6 +417,7 @@ func Run(ctx context.Context, s *options.KubeletServer, kubeDeps *kubelet.Depend
 
 	klog.InfoS("Golang settings", "GOGC", os.Getenv("GOGC"), "GOMAXPROCS", os.Getenv("GOMAXPROCS"), "GOTRACEBACK", os.Getenv("GOTRACEBACK"))
 
+
 	if err := initForOS(s.KubeletFlags.WindowsService, s.KubeletFlags.WindowsPriorityClass); err != nil {
 		return fmt.Errorf("failed OS init: %w", err)
 	}
@@ -574,12 +575,13 @@ func run(ctx context.Context, s *options.KubeletServer, kubeDeps *kubelet.Depend
 	// 如果是单机模式，设置所有客户端为nil，不需要连接apiserver
 	//如果是集群模式，需要连接apiserver
 	switch {
+	// 如果是单机模式，设置所有客户端为nil，不需要连接apiserver
 	case standaloneMode:
 		kubeDeps.KubeClient = nil
 		kubeDeps.EventClient = nil
 		kubeDeps.HeartbeatClient = nil
 		klog.InfoS("Standalone mode, no API client")
-
+	// 如果是集群模式，需要连接apiserver
 	case kubeDeps.KubeClient == nil, kubeDeps.EventClient == nil, kubeDeps.HeartbeatClient == nil:
 		clientConfig, onHeartbeatFailure, err := buildKubeletClientConfig(ctx, s, kubeDeps.TracerProvider, nodeName)
 		if err != nil {
@@ -630,8 +632,10 @@ func run(ctx context.Context, s *options.KubeletServer, kubeDeps *kubelet.Depend
 	}
 
 	var cgroupRoots []string
+	// 将获取到的节点可分配资源的Cgroup根路径添加到cgroupRoots切片
 	nodeAllocatableRoot := cm.NodeAllocatableRoot(s.CgroupRoot, s.CgroupsPerQOS, s.CgroupDriver)
 	cgroupRoots = append(cgroupRoots, nodeAllocatableRoot)
+	// 获取kubelet的cgroup信息，并将结果存储在kubeletCgroup变量中
 	kubeletCgroup, err := cm.GetKubeletContainer(s.KubeletCgroups)
 	if err != nil {
 		klog.InfoS("Failed to get the kubelet's cgroup. Kubelet system container metrics may be missing.", "err", err)
@@ -661,16 +665,25 @@ func run(ctx context.Context, s *options.KubeletServer, kubeDeps *kubelet.Depend
 	makeEventRecorder(kubeDeps, nodeName)
 
 	// 如果没有指定container manager，就初始化container manager
+	//- 创建和初始化kubelet实例
+	//- 设置资源限制和阈值
+	//- 解析和处理用户指定的选项值
+	//- 创建和配置容器管理器
+	//- 启动kubelet和相关服务
+	//- 启动健康检查服务器
+	//- 通知systemd，kubelet已经启动
 	if kubeDeps.ContainerManager == nil {
 		if s.CgroupsPerQOS && s.CgroupRoot == "" {
 			klog.InfoS("--cgroups-per-qos enabled, but --cgroup-root was not specified.  defaulting to /")
 			s.CgroupRoot = "/"
 		}
 
+		// CAdvisorInterface.MachineInfo是获取节点的资源信息
 		machineInfo, err := kubeDeps.CAdvisorInterface.MachineInfo()
 		if err != nil {
 			return err
 		}
+		// getReservedCPUs是获取 kubeReservedCPUs 和 systemReservedCPUs
 		reservedSystemCPUs, err := getReservedCPUs(machineInfo, s.ReservedSystemCPUs)
 		if err != nil {
 			return err
@@ -699,11 +712,13 @@ func run(ctx context.Context, s *options.KubeletServer, kubeDeps *kubelet.Depend
 		var hardEvictionThresholds []evictionapi.Threshold
 		// If the user requested to ignore eviction thresholds, then do not set valid values for hardEvictionThresholds here.
 		if !s.ExperimentalNodeAllocatableIgnoreEvictionThreshold {
+			//用于解析硬驱逐阈值配置的
 			hardEvictionThresholds, err = eviction.ParseThresholdConfig([]string{}, s.EvictionHard, nil, nil, nil)
 			if err != nil {
 				return err
 			}
 		}
+		// 这段代码是用来解析QOSReserved参数的
 		experimentalQOSReserved, err := cm.ParseQOSReserved(s.QOSReserved)
 		if err != nil {
 			return fmt.Errorf("--qos-reserved value failed to parse: %w", err)
@@ -726,6 +741,7 @@ func run(ctx context.Context, s *options.KubeletServer, kubeDeps *kubelet.Depend
 		}
 
 		// new一个container manager
+		// 初始化container manager
 		kubeDeps.ContainerManager, err = cm.NewContainerManager(
 			kubeDeps.Mounter,
 			kubeDeps.CAdvisorInterface,
@@ -771,16 +787,19 @@ func run(ctx context.Context, s *options.KubeletServer, kubeDeps *kubelet.Depend
 		}
 	}
 
+	// PodStartupLatencyTracker是一个用于跟踪pod启动延迟的工具
 	if kubeDeps.PodStartupLatencyTracker == nil {
 		kubeDeps.PodStartupLatencyTracker = kubeletutil.NewPodStartupLatencyTracker()
 	}
 
 	// TODO(vmarmol): Do this through container config.
 	oomAdjuster := kubeDeps.OOMAdjuster
+	// ApplyOOMScoreAdj是一个用于设置OOMScoreAdj的工具，用作OOM Killer的优先级
 	if err := oomAdjuster.ApplyOOMScoreAdj(0, int(s.OOMScoreAdj)); err != nil {
 		klog.InfoS("Failed to ApplyOOMScoreAdj", "err", err)
 	}
 
+	// PreInitRuntimeService是一个用于初始化runtime service的工具
 	err = kubelet.PreInitRuntimeService(&s.KubeletConfiguration, kubeDeps)
 	if err != nil {
 		return err
@@ -795,6 +814,7 @@ func run(ctx context.Context, s *options.KubeletServer, kubeDeps *kubelet.Depend
 		mux := http.NewServeMux()
 		healthz.InstallHandler(mux)
 		go wait.Until(func() {
+			//ListenAndServe是用来启动一个http服务的
 			err := http.ListenAndServe(net.JoinHostPort(s.HealthzBindAddress, strconv.Itoa(int(s.HealthzPort))), mux)
 			if err != nil {
 				klog.ErrorS(err, "Failed to start healthz server")
@@ -1174,6 +1194,7 @@ func RunKubelet(kubeServer *options.KubeletServer, kubeDeps *kubelet.Dependencie
 	}
 
 	// process pods and exit.
+	// 运行一次kubelet
 	if runOnce {
 		if _, err := k.RunOnce(podCfg.Updates()); err != nil {
 			return fmt.Errorf("runonce failed: %w", err)
@@ -1203,11 +1224,7 @@ func startKubelet(k kubelet.Bootstrap, podCfg *config.PodConfig, kubeCfg *kubele
 	go k.ListenAndServePodResources()
 }
 
-func createAndInitKubelet(kubeServer *options.KubeletServer,
-	kubeDeps *kubelet.Dependencies,
-	hostname string,
-	hostnameOverridden bool,
-	nodeName types.NodeName,
+func createAndInitKubelet(kubeServer *options.KubeletServer, kubeDeps *kubelet.Dependencies, hostname string, hostnameOverridden bool, nodeName types.NodeName,
 	nodeIPs []net.IP) (k kubelet.Bootstrap, err error) {
 	// TODO: block until all sources have delivered at least one update to the channel, or break the sync loop
 	// up into "per source" synchronizations
@@ -1243,7 +1260,7 @@ func createAndInitKubelet(kubeServer *options.KubeletServer,
 		return nil, err
 	}
 
-	// 这个是kubelet的初始化函数
+	//BirthCry是kubelet的一个函数，用于打印kubelet的启动信息
 	k.BirthCry()
 
 	//这个是kubelet的启动函数

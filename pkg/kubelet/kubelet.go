@@ -1897,6 +1897,9 @@ func (kl *Kubelet) SyncPod(ctx context.Context, updateType kubetypes.SyncPodType
 	}
 
 	// Create Mirror Pod for Static Pod if it doesn't already exist
+	// 查询是否有"kubernetes.io/config.source" pod
+	// 用于检查给定的pod是否是静态Pod。如果是静态Pod，则将deleted变量设置为false。
+	// 静态Pod是由kubelet直接管理的Pod，而不是由API服务器创建的。 
 	if kubetypes.IsStaticPod(pod) {
 		deleted := false
 		if mirrorPod != nil {
@@ -2342,6 +2345,7 @@ func (kl *Kubelet) syncLoop(ctx context.Context, updates <-chan kubetypes.PodUpd
 	// syncTicker用作唤醒kubelet，检查是否有需要同步的pod worker。1s的周期足以满足需求，因为同步间隔默认为10s。
 	syncTicker := time.NewTicker(time.Second)
 	defer syncTicker.Stop()
+	//housekeepingTicker清理
 	housekeepingTicker := time.NewTicker(housekeepingPeriod)
 	defer housekeepingTicker.Stop()
 	plegCh := kl.pleg.Watch()
@@ -2355,6 +2359,10 @@ func (kl *Kubelet) syncLoop(ctx context.Context, updates <-chan kubetypes.PodUpd
 	// The limits do not have anything to do with individual pods
 	// Since this is called in syncLoop, we don't need to call it anywhere else
 	if kl.dnsConfigurer != nil && kl.dnsConfigurer.ResolverConfig != "" {
+		//用于检查 resolv.conf 文件的限制。
+		//在这个方法中，kubelet 会调用 dnsConfigurer 的 CheckLimitsForResolvConf() 方法来检查 resolv.conf 文件的限制。
+		//具体来说，这个方法会检查 resolv.conf 文件中的配置是否符合预期，并根据检查结果采取相应的操作。这个方法的目的是确保 resolv.conf 文件的配置符合 Kubernetes 集群的要求，以保证 DNS 解析的正常运行。
+		//在 kubelet 的主循环中，这个方法会被周期性地调用，以确保 resolv.conf 文件的配置始终处于正确的状态。
 		kl.dnsConfigurer.CheckLimitsForResolvConf()
 	}
 
@@ -2374,6 +2382,7 @@ func (kl *Kubelet) syncLoop(ctx context.Context, updates <-chan kubetypes.PodUpd
 		if !kl.syncLoopIteration(ctx, updates, handler, syncTicker.C, housekeepingTicker.C, plegCh) {
 			break
 		}
+		// 将	kl.clock.Now() 存入 kl.syncLoopMonitor
 		kl.syncLoopMonitor.Store(kl.clock.Now())
 	}
 }

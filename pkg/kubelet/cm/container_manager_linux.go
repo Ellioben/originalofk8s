@@ -371,7 +371,10 @@ func NewContainerManager(mountUtil mount.Interface, cadvisorInterface cadvisor.I
 // NewPodContainerManager is a factory method returns a PodContainerManager object
 // If qosCgroups are enabled then it returns the general pod container manager
 // otherwise it returns a no-op manager which essentially does nothing
+// NewPodContainerManager
+//  kubelet.syncLoopIteration() -> kubelet.podWorkers.syncPod() -> kubelet.syncPod() -> NewPodContainerManager
 func (cm *containerManagerImpl) NewPodContainerManager() PodContainerManager {
+	// 是否使用CgroupPerQOS
 	if cm.NodeConfig.CgroupsPerQOS {
 		return &podContainerManagerImpl{
 			qosContainersInfo: cm.GetQOSContainersInfo(),

@@ -741,6 +741,7 @@ func (p *podWorkers) UpdatePod(options UpdatePodOptions) {
 	var isRuntimePod bool
 	var uid types.UID
 	var name, ns string
+	// 一下这里的逻辑，如果是运行时的pod，那么options.Pod为nil，options.RunningPod不为nil
 	if runningPod := options.RunningPod; runningPod != nil {
 		if options.Pod == nil {
 			// the sythetic pod created here is used only as a placeholder and not tracked
@@ -1253,6 +1254,8 @@ func (p *podWorkers) podWorkerLoop(podUID types.UID, podUpdates <-chan struct{})
 				//  Improving this latency also reduces the possibility that a terminated
 				//  container's status is garbage collected before we have a chance to update the
 				//  API server (thus losing the exit code).
+				//
+				// 用来从podCache中获取在指定时间之后更新的pod的状态
 				status, err = p.podCache.GetNewerThan(update.Options.Pod.UID, lastSyncTime)
 
 				if err != nil {
@@ -1268,6 +1271,8 @@ func (p *podWorkers) podWorkerLoop(podUID types.UID, podUpdates <-chan struct{})
 			case update.WorkType == TerminatedPod:
 				err = p.podSyncer.SyncTerminatedPod(ctx, update.Options.Pod, status)
 
+			//果update.WorkType为TerminatingPod，
+			//则根据是否存在update.Options.RunningPod来决定是直接终止正在运行的Pod还是调用p.podSyncer.SyncTerminatingPod方法来同步正在终止的Pod
 			case update.WorkType == TerminatingPod:
 				var gracePeriod *int64
 				if opt := update.Options.KillPodOptions; opt != nil {
@@ -1283,6 +1288,7 @@ func (p *podWorkers) podWorkerLoop(podUID types.UID, podUpdates <-chan struct{})
 				}
 
 			default:
+				// 最后同步pod
 				isTerminal, err = p.podSyncer.SyncPod(ctx, update.Options.UpdateType, update.Options.Pod, update.Options.MirrorPod, status)
 			}
 
@@ -1331,6 +1337,9 @@ func (p *podWorkers) podWorkerLoop(podUID types.UID, podUpdates <-chan struct{})
 		}
 
 		// queue a retry if necessary, then put the next event in the channel if any
+		// completeWork方法的作用是重新排队最后一次更新的工作，并根据不同的情况设置重新排队的时间间隔。
+		// 在这段代码中，podUID是要重新排队的Pod的唯一标识符，phaseTransition表示是否发生了阶段转换，
+
 		p.completeWork(podUID, phaseTransition, err)
 		if start := update.Options.StartTime; !start.IsZero() {
 			metrics.PodWorkerDuration.WithLabelValues(update.Options.UpdateType.String()).Observe(metrics.SinceInSeconds(start))

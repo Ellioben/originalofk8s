@@ -20,7 +20,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"k8s-org/kubernetes/vendor/k8s.io/klog/v2"
 	"net/http"
 	"os"
 	goruntime "runtime"

@@ -91,7 +91,10 @@ type ContentValidator interface {
 }
 
 // Visitor lets clients walk a list of resources.
+// 这个visitor是通过建造者模式构建出来的。
 type Visitor interface {
+	// 实现visitor接口的对象，可以通过Visit方法遍历资源列表
+	// 比如通过file去获取资源列表，通过http去获取资源列表
 	Visit(VisitorFunc) error
 }
 

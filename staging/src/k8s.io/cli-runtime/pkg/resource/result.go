@@ -96,6 +96,7 @@ func (r *Result) Visit(fn VisitorFunc) error {
 	if r.err != nil {
 		return r.err
 	}
+	// 调用所有注册过的visitor的list
 	err := r.visitor.Visit(fn)
 	return utilerrors.FilterOut(err, r.ignoreErrors...)
 }

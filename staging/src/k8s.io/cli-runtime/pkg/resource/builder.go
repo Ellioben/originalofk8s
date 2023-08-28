@@ -242,6 +242,7 @@ func (b *Builder) AddError(err error) *Builder {
 // will cause an error.
 // If ContinueOnError() is set prior to this method, objects on the path that are not
 // recognized will be ignored (but logged at V(2)).
+//FilenameParam是对输入进行分组，分为URL和文件两类
 func (b *Builder) FilenameParam(enforceNamespace bool, filenameOptions *FilenameOptions) *Builder {
 	//校验传入的值，filename或者Kustomize只能有一个
 	if errs := filenameOptions.validate(); len(errs) > 0 {
@@ -273,7 +274,7 @@ func (b *Builder) FilenameParam(enforceNamespace bool, filenameOptions *Filename
 			if !recursive && len(matches) == 1 {
 				b.singleItemImplied = true
 			}
-			//如果是目录，则递归读取目录下的文件
+			//如果是目录，则递归读取目录下的文件，包括子目录，最后调用对应的visit方法
 			b.Path(recursive, matches...)
 		}
 	}
@@ -433,6 +434,7 @@ func (b *Builder) Path(recursive bool, paths ...string) *Builder {
 			continue
 		}
 
+		// ExpandPathsToFileVisitors是一个递归函数，它将路径转换为文件访问者。最后以其他形式调用对应的visit方法
 		visitors, err := ExpandPathsToFileVisitors(b.mapper, p, recursive, FileExtensions, b.schema)
 		if err != nil {
 			b.errs = append(b.errs, fmt.Errorf("error reading %q: %v", p, err))
@@ -1188,6 +1190,7 @@ func (b *Builder) Do() *Result {
 	if b.continueOnError {
 		r.visitor = ContinueOnErrorVisitor{Visitor: r.visitor}
 	}
+	// 获取
 	r.visitor = NewDecoratedVisitor(r.visitor, helpers...)
 	return r
 }

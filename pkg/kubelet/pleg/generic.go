@@ -189,6 +189,14 @@ func generateEvents(podID types.UID, cid string, oldState, newState plegContaine
 	}
 
 	klog.V(4).InfoS("GenericPLEG", "podUID", podID, "containerID", cid, "oldState", oldState, "newState", newState)
+	// '然后调用convertState获取状态
+	//convertState解析
+	//可以看到就是判断容器的state,然后转化为plegContainer state
+	//oContainerStateCreated对应的是plegContainerUnknown,意思是容器被创建出来但是没有启动
+	//oContainerStateRunning对应的是plegContainerRunning,代表容器正常运行中
+	//oContainerStateExited对应的是plegContainerExited,代表容器运行结束了
+	//oContainerStateUnknown对应的是plegContainerUnknown,代表容器当前处于restarting,
+	//paused,dead
 	switch newState {
 	case plegContainerRunning:
 		return []*PodLifecycleEvent{{ID: podID, Type: ContainerStarted, Data: cid}}
@@ -269,6 +277,7 @@ func (g *GenericPLEG) Relist() {
 			// 处理新旧event
 			events := computeEvents(oldPod, pod, &container.ID)
 			for _, e := range events {
+				// 需要生成的新event
 				updateEvents(eventsByPodID, e)
 			}
 		}
@@ -325,6 +334,7 @@ func (g *GenericPLEG) Relist() {
 				continue
 			}
 			select {
+			// 时间生成的event做处理
 			case g.eventChannel <- events[i]:
 			default:
 				metrics.PLEGDiscardEvents.Inc()

@@ -334,7 +334,7 @@ func (g *GenericPLEG) Relist() {
 				continue
 			}
 			select {
-			// 时间生成的event做处理
+			// 时间生成的event做处理,会给到sychLoop的plegCh
 			case g.eventChannel <- events[i]:
 			default:
 				metrics.PLEGDiscardEvents.Inc()

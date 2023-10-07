@@ -750,6 +750,8 @@ func NewMainKubelet(kubeCfg *kubeletconfiginternal.KubeletConfiguration,
 	}
 
 	klet.runtimeState = newRuntimeState(maxWaitForContainerRuntime)
+	// kubelet 添加PLEG健康检查
+	// 定时检查，klet.pleg.Healthy对应的就是pleg的Healthy()
 	klet.runtimeState.addHealthCheck("PLEG", klet.pleg.Healthy)
 	if utilfeature.DefaultFeatureGate.Enabled(features.EventedPLEG) {
 		klet.runtimeState.addHealthCheck("EventedPLEG", klet.eventedPleg.Healthy)

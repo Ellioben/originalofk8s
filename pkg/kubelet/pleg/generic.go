@@ -116,9 +116,15 @@ type podRecord struct {
 type podRecords map[types.UID]*podRecord
 
 // NewGenericPLEG instantiates a new GenericPLEG object and return it.
-func NewGenericPLEG(runtime kubecontainer.Runtime, eventChannel chan *PodLifecycleEvent,
-	relistDuration *RelistDuration, cache kubecontainer.Cache,
+// 初始化pleg
+func NewGenericPLEG(runtime kubecontainer.Runtime, eventChannel chan *PodLifecycleEvent, relistDuration *RelistDuration, cache kubecontainer.Cache,
 	clock clock.Clock) PodLifecycleEventGenerator {
+	//参数解读
+	//kubecontainer.Runtime代表容器运行时
+	//ChannelCapacity,代表接受pod lifecycle events的队列长度,默认为1000
+	//RelistPeriod relist间隔,默认为1秒
+	//klet.podCache代表pod的缓存
+	//clock.RealClock{}代表获取当前时间
 	return &GenericPLEG{
 		relistDuration: relistDuration,
 		runtime:        runtime,

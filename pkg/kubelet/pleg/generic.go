@@ -143,6 +143,7 @@ func (g *GenericPLEG) Watch() chan *PodLifecycleEvent {
 }
 
 // Start spawns a goroutine to relist periodically.
+// kubelet启动pleg
 func (g *GenericPLEG) Start() {
 	g.runningMu.Lock()
 	defer g.runningMu.Unlock()
@@ -239,6 +240,7 @@ func (g *GenericPLEG) Relist() {
 	}()
 
 	// Get all the pods.
+	// ---relist
 	podList, err := g.runtime.GetPods(ctx, true)
 	if err != nil {
 		klog.ErrorS(err, "GenericPLEG: Unable to retrieve pods")
@@ -248,8 +250,11 @@ func (g *GenericPLEG) Relist() {
 	g.updateRelistTime(timestamp)
 
 	pods := kubecontainer.Pods(podList)
+	// ---
 	// update running pod and container count
+	// 更新指标数据
 	updateRunningPodAndContainerMetrics(pods)
+	// 遍历records，下面用来对比新旧对比生成事件
 	g.podRecords.setCurrent(pods)
 
 	// Compare the old and the current pods, and generate events.
@@ -258,8 +263,10 @@ func (g *GenericPLEG) Relist() {
 		oldPod := g.podRecords.getOld(pid)
 		pod := g.podRecords.getCurrent(pid)
 		// Get all containers in the old and the new pod.
+		// 获取到所有容器
 		allContainers := getContainersFromPods(oldPod, pod)
 		for _, container := range allContainers {
+			// 处理新旧event
 			events := computeEvents(oldPod, pod, &container.ID)
 			for _, e := range events {
 				updateEvents(eventsByPodID, e)
@@ -524,7 +531,12 @@ func getContainerState(pod *kubecontainer.Pod, cid *kubecontainer.ContainerID) p
 
 	return state
 }
-
+//- 从代码中可以看到对应的统计细节
+//- 首先构建以容器运行状态为key,value是个数的map
+//- 然后变量pods,再遍历容器
+//- 将containerStateCount按状态计数
+//- 然后根据每一个pod只有一个运行的sandbox计算运行的pod数量
+//- 最后打点即可
 func updateRunningPodAndContainerMetrics(pods []*kubecontainer.Pod) {
 	runningSandboxNum := 0
 	// intermediate map to store the count of each "container_state"
@@ -536,7 +548,7 @@ func updateRunningPodAndContainerMetrics(pods []*kubecontainer.Pod) {
 			// update the corresponding "container_state" in map to set value for the gaugeVec metrics
 			containerStateCount[string(container.State)]++
 		}
-
+		// pause container
 		sandboxes := pod.Sandboxes
 
 		for _, sandbox := range sandboxes {

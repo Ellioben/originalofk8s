@@ -254,10 +254,12 @@ func (o *CreateOptions) RunCreate(f cmdutil.Factory, cmd *cobra.Command) error {
 		Schema(schema).
 		ContinueOnError().
 		NamespaceParam(cmdNamespace).DefaultNamespace().
+		//FilenameParam
 		FilenameParam(enforceNamespace, &o.FilenameOptions).
 		LabelSelectorParam(o.Selector).
 		Flatten().
 		Do()
+	// do的时候创建很多visitor，其中有一个是visit，visit的时候会调用visitFn
 	err = r.Err()
 	if err != nil {
 		return err

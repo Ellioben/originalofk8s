@@ -494,7 +494,8 @@ func ExpandPathsToFileVisitors(mapper *mapper, paths string, recursive bool, ext
 		}
 
 		visitor := &FileVisitor{
-			Path:          path,
+			Path: path,
+			// 调用 NewStreamVisitor 创建 StreamVisitor，最后以其他形式调用对应的visit方法
 			StreamVisitor: NewStreamVisitor(nil, mapper, path, schema),
 		}
 
@@ -558,6 +559,7 @@ func NewStreamVisitor(r io.Reader, mapper *mapper, source string, schema Content
 	}
 }
 
+// StreamVisitor.Visitor最后以其他形式调用对应的visit方法
 // Visit implements Visitor over a stream. StreamVisitor is able to distinct multiple resources in one stream.
 func (v *StreamVisitor) Visit(fn VisitorFunc) error {
 	d := yaml.NewYAMLOrJSONDecoder(v.Reader, 4096)
@@ -574,12 +576,14 @@ func (v *StreamVisitor) Visit(fn VisitorFunc) error {
 		if len(ext.Raw) == 0 || bytes.Equal(ext.Raw, []byte("null")) {
 			continue
 		}
+		// 校验yaml文件的格式是否正确，根据schema来校验
 		if err := ValidateSchema(ext.Raw, v.Schema); err != nil {
 			return fmt.Errorf("error validating %q: %v", v.Source, err)
 		}
 		//  这里就是返回info的地方	，主要作用是将ext.Raw转换成info
 		info, err := v.infoForData(ext.Raw, v.Source)
 		if err != nil {
+			// 判断这个visitor执行起来会不会报错，执行位置在newBuilder的visit方法中
 			if fnErr := fn(info, err); fnErr != nil {
 				return fnErr
 			}

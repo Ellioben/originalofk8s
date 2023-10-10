@@ -321,6 +321,7 @@ func (o *Options) Run() error {
 		return cleanupAndExit()
 	}
 
+	// 初始化procy service
 	proxyServer, err := newProxyServer(o.config, o.master)
 	if err != nil {
 		return err
@@ -469,6 +470,7 @@ with the apiserver API to configure the proxy.`,
 			verflag.PrintAndExitIfRequested()
 			cliflag.PrintFlags(cmd.Flags())
 
+			// 读取配置
 			if err := initForOS(opts.WindowsService); err != nil {
 				return fmt.Errorf("failed os init: %w", err)
 			}

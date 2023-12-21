@@ -60,6 +60,7 @@ var (
 
 var registerMetricsOnce sync.Once
 
+// every feature have themself RegisterMetricsgit
 func RegisterMetrics() {
 	registerMetricsOnce.Do(func() {
 		legacyregistry.MustRegister(legacyTokensTotal)

@@ -116,9 +116,15 @@ type podRecord struct {
 type podRecords map[types.UID]*podRecord
 
 // NewGenericPLEG instantiates a new GenericPLEG object and return it.
-func NewGenericPLEG(runtime kubecontainer.Runtime, eventChannel chan *PodLifecycleEvent,
-	relistDuration *RelistDuration, cache kubecontainer.Cache,
+// 初始化pleg
+func NewGenericPLEG(runtime kubecontainer.Runtime, eventChannel chan *PodLifecycleEvent, relistDuration *RelistDuration, cache kubecontainer.Cache,
 	clock clock.Clock) PodLifecycleEventGenerator {
+	//参数解读
+	//kubecontainer.Runtime代表容器运行时
+	//ChannelCapacity,代表接受pod lifecycle events的队列长度,默认为1000
+	//RelistPeriod relist间隔,默认为1秒
+	//klet.podCache代表pod的缓存
+	//clock.RealClock{}代表获取当前时间
 	return &GenericPLEG{
 		relistDuration: relistDuration,
 		runtime:        runtime,
@@ -137,6 +143,7 @@ func (g *GenericPLEG) Watch() chan *PodLifecycleEvent {
 }
 
 // Start spawns a goroutine to relist periodically.
+// kubelet启动pleg
 func (g *GenericPLEG) Start() {
 	g.runningMu.Lock()
 	defer g.runningMu.Unlock()
@@ -182,6 +189,14 @@ func generateEvents(podID types.UID, cid string, oldState, newState plegContaine
 	}
 
 	klog.V(4).InfoS("GenericPLEG", "podUID", podID, "containerID", cid, "oldState", oldState, "newState", newState)
+	// '然后调用convertState获取状态
+	//convertState解析
+	//可以看到就是判断容器的state,然后转化为plegContainer state
+	//oContainerStateCreated对应的是plegContainerUnknown,意思是容器被创建出来但是没有启动
+	//oContainerStateRunning对应的是plegContainerRunning,代表容器正常运行中
+	//oContainerStateExited对应的是plegContainerExited,代表容器运行结束了
+	//oContainerStateUnknown对应的是plegContainerUnknown,代表容器当前处于restarting,
+	//paused,dead
 	switch newState {
 	case plegContainerRunning:
 		return []*PodLifecycleEvent{{ID: podID, Type: ContainerStarted, Data: cid}}
@@ -233,6 +248,7 @@ func (g *GenericPLEG) Relist() {
 	}()
 
 	// Get all the pods.
+	// ---relist
 	podList, err := g.runtime.GetPods(ctx, true)
 	if err != nil {
 		klog.ErrorS(err, "GenericPLEG: Unable to retrieve pods")
@@ -242,8 +258,11 @@ func (g *GenericPLEG) Relist() {
 	g.updateRelistTime(timestamp)
 
 	pods := kubecontainer.Pods(podList)
+	// ---
 	// update running pod and container count
+	// 更新指标数据
 	updateRunningPodAndContainerMetrics(pods)
+	// 遍历records，下面用来对比新旧对比生成事件
 	g.podRecords.setCurrent(pods)
 
 	// Compare the old and the current pods, and generate events.
@@ -252,10 +271,13 @@ func (g *GenericPLEG) Relist() {
 		oldPod := g.podRecords.getOld(pid)
 		pod := g.podRecords.getCurrent(pid)
 		// Get all containers in the old and the new pod.
+		// 获取到所有容器
 		allContainers := getContainersFromPods(oldPod, pod)
 		for _, container := range allContainers {
+			// 处理新旧event
 			events := computeEvents(oldPod, pod, &container.ID)
 			for _, e := range events {
+				// 需要生成的新event
 				updateEvents(eventsByPodID, e)
 			}
 		}
@@ -312,6 +334,7 @@ func (g *GenericPLEG) Relist() {
 				continue
 			}
 			select {
+			// 时间生成的event做处理,会给到sychLoop的plegCh
 			case g.eventChannel <- events[i]:
 			default:
 				metrics.PLEGDiscardEvents.Inc()
@@ -518,7 +541,12 @@ func getContainerState(pod *kubecontainer.Pod, cid *kubecontainer.ContainerID) p
 
 	return state
 }
-
+//- 从代码中可以看到对应的统计细节
+//- 首先构建以容器运行状态为key,value是个数的map
+//- 然后变量pods,再遍历容器
+//- 将containerStateCount按状态计数
+//- 然后根据每一个pod只有一个运行的sandbox计算运行的pod数量
+//- 最后打点即可
 func updateRunningPodAndContainerMetrics(pods []*kubecontainer.Pod) {
 	runningSandboxNum := 0
 	// intermediate map to store the count of each "container_state"
@@ -530,7 +558,7 @@ func updateRunningPodAndContainerMetrics(pods []*kubecontainer.Pod) {
 			// update the corresponding "container_state" in map to set value for the gaugeVec metrics
 			containerStateCount[string(container.State)]++
 		}
-
+		// pause container
 		sandboxes := pod.Sandboxes
 
 		for _, sandbox := range sandboxes {

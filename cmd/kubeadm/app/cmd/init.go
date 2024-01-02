@@ -99,6 +99,7 @@ func newCmdInit(out io.Writer, initOptions *initOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Run this command in order to set up the Kubernetes control plane",
+		// run error
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := initRunner.InitData(args)
 			if err != nil {
@@ -115,6 +116,7 @@ func newCmdInit(out io.Writer, initOptions *initOptions) *cobra.Command {
 
 	// add flags to the init command.
 	// init command local flags could be eventually inherited by the sub-commands automatically generated for phases
+	// cmd.Flag().FlagSet config init的子命令（外传&默认）
 	AddInitConfigFlags(cmd.Flags(), initOptions.externalInitCfg)
 	AddClusterConfigFlags(cmd.Flags(), initOptions.externalClusterCfg, &initOptions.featureGatesString)
 	AddInitOtherFlags(cmd.Flags(), initOptions)
@@ -131,7 +133,9 @@ func newCmdInit(out io.Writer, initOptions *initOptions) *cobra.Command {
 	})
 
 	// initialize the workflow runner with the list of phases
+	// 准备工作检查
 	initRunner.AppendPhase(phases.NewPreflightPhase())
+	// cert相关
 	initRunner.AppendPhase(phases.NewCertsPhase())
 	initRunner.AppendPhase(phases.NewKubeConfigPhase())
 	initRunner.AppendPhase(phases.NewEtcdPhase())

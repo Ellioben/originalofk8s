@@ -61,6 +61,7 @@ func runPreflight(c workflow.RunData) error {
 	}
 
 	fmt.Println("[preflight] Running pre-flight checks")
+	// init的核心组件
 	if err := preflight.RunInitNodeChecks(utilsexec.New(), data.Cfg(), data.IgnorePreflightErrors(), false, false); err != nil {
 		return err
 	}
@@ -73,5 +74,6 @@ func runPreflight(c workflow.RunData) error {
 	fmt.Println("[preflight] Pulling images required for setting up a Kubernetes cluster")
 	fmt.Println("[preflight] This might take a minute or two, depending on the speed of your internet connection")
 	fmt.Println("[preflight] You can also perform this action in beforehand using 'kubeadm config images pull'")
+	// preflight.RunPullImagesCheck容器运行时判断，不同的容器引擎拉取不同的镜像
 	return preflight.RunPullImagesCheck(utilsexec.New(), data.Cfg(), data.IgnorePreflightErrors())
 }

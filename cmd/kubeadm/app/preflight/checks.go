@@ -895,19 +895,23 @@ func (MemCheck) Name() string {
 
 func InitNodeChecks(execer utilsexec.Interface, cfg *kubeadmapi.InitConfiguration, ignorePreflightErrors sets.Set[string], isSecondaryControlPlane bool, downloadCerts bool) ([]Checker, error) {
 	if !isSecondaryControlPlane {
+		// 检查preflight
 		// First, check if we're root separately from the other preflight checks and fail fast
 		if err := RunRootCheckOnly(ignorePreflightErrors); err != nil {
 			return nil, err
 		}
 	}
 
+	// 检查路径
 	manifestsDir := filepath.Join(kubeadmconstants.KubernetesDir, kubeadmconstants.ManifestsSubDirName)
 	checks := []Checker{
+		// （是否符合最小要求）检查cpu，内存，k8s版本等等...
 		NumCPUCheck{NumCPU: kubeadmconstants.ControlPlaneNumCPU},
 		// Linux only
 		// TODO: support other OS, if control-plane is supported on it.
 		MemCheck{Mem: kubeadmconstants.ControlPlaneMem},
 		KubernetesVersionCheck{KubernetesVersion: cfg.KubernetesVersion, KubeadmVersion: kubeadmversion.Get().GitVersion},
+		// 检查防火墙
 		FirewalldCheck{ports: []int{int(cfg.LocalAPIEndpoint.BindPort), kubeadmconstants.KubeletPort}},
 		PortOpenCheck{port: int(cfg.LocalAPIEndpoint.BindPort)},
 		PortOpenCheck{port: kubeadmconstants.KubeSchedulerPort},

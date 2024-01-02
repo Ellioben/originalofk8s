@@ -80,6 +80,7 @@ func NewKubeadmCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 
 	cmds.ResetFlags()
 
+	// 主命令结束的时候用，会继续注入子命令
 	cmds.AddCommand(newCmdCertsUtility(out))
 	cmds.AddCommand(newCmdCompletion(out, ""))
 	cmds.AddCommand(newCmdConfig(out))

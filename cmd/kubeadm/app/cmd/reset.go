@@ -178,6 +178,7 @@ func newCmdReset(in io.Reader, out io.Writer, resetOptions *resetOptions) *cobra
 
 	cmd := &cobra.Command{
 		Use:   "reset",
+		// 命令短描述
 		Short: "Performs a best effort revert of changes made to this host by 'kubeadm init' or 'kubeadm join'",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			err := resetRunner.Run(args)
@@ -196,9 +197,10 @@ func newCmdReset(in io.Reader, out io.Writer, resetOptions *resetOptions) *cobra
 	AddResetFlags(cmd.Flags(), resetOptions)
 
 	// initialize the workflow runner with the list of phases
-	resetRunner.AppendPhase(phases.NewPreflightPhase())
-	resetRunner.AppendPhase(phases.NewRemoveETCDMemberPhase())
-	resetRunner.AppendPhase(phases.NewCleanupNodePhase())
+	resetRunner.AppendPhase(phases.NewPreflightPhase()) //对应preflight运行reset前检查
+	resetRunner.AppendPhase(phases.NewRemoveETCDMemberPhase()) //对应删除本地etcd成员
+	resetRunner.AppendPhase(phases.NewCleanupNodePhase()) //对应执行cleanup node命令
+
 
 	// sets the data builder function, that will be used by the runner
 	// both when running the entire workflow or single phases

@@ -22,5 +22,6 @@ import (
 )
 
 func main() {
+	// kubeadm入口Run
 	kubeadmutil.CheckErr(app.Run())
 }

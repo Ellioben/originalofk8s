@@ -46,6 +46,7 @@ func Run() error {
 	pflag.CommandLine.MarkHidden("stderrthreshold")
 	pflag.CommandLine.MarkHidden("vmodule")
 
+	// 主命令入口
 	cmd := cmd.NewKubeadmCommand(os.Stdin, os.Stdout, os.Stderr)
 	return cmd.Execute()
 }

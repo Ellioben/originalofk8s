@@ -61,6 +61,7 @@ var (
 
 // NewUploadConfigPhase returns the phase to uploadConfig
 func NewUploadConfigPhase() workflow.Phase {
+	// 将kubeadm-configmap以及kubelet-configmap上传到控制层面当中
 	return workflow.Phase{
 		Name:    "upload-config",
 		Aliases: []string{"uploadconfig"},

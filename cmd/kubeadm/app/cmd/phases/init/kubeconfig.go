@@ -76,6 +76,8 @@ func NewKubeConfigPhase() workflow.Phase {
 				InheritFlags:   getKubeConfigPhaseFlags("all"),
 				RunAllSiblings: true,
 			},
+
+			//generate config
 			NewKubeConfigFilePhase(kubeadmconstants.AdminKubeConfigFileName),
 			NewKubeConfigFilePhase(kubeadmconstants.KubeletKubeConfigFileName),
 			NewKubeConfigFilePhase(kubeadmconstants.ControllerManagerKubeConfigFileName),

@@ -63,6 +63,8 @@ func runKubeletStart(c workflow.RunData) error {
 
 	// First off, configure the kubelet. In this short timeframe, kubeadm is trying to stop/restart the kubelet
 	// Try to stop the kubelet service so no race conditions occur when configuring it
+	// 首先，配置kubelet。在这段短时间内，kubeadm试图停止/重新启动kubelet
+	// 尝试停止kubelet服务，以便在配置它时不出现竞争条件
 	if !data.DryRun() {
 		klog.V(1).Infoln("Stopping the kubelet")
 		kubeletphase.TryStopKubelet()
@@ -76,6 +78,7 @@ func runKubeletStart(c workflow.RunData) error {
 	}
 
 	// Write the kubelet configuration file to disk.
+	//
 	if err := kubeletphase.WriteConfigToDisk(&data.Cfg().ClusterConfiguration, data.KubeletDir(), data.PatchesDir(), data.OutputWriter()); err != nil {
 		return errors.Wrap(err, "error writing kubelet configuration to disk")
 	}

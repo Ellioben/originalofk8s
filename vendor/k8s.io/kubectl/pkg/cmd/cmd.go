@@ -325,7 +325,7 @@ func NewKubectlCommand(o KubectlOptions) *cobra.Command {
 		Run: runHelp,
 		// Hook before and after Run initialize and write profiles to disk,
 		// respectively.
-		// PreRunhook
+		// PreRunhook run前的钩子
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			rest.SetDefaultWarningHandler(warningHandler)
 
@@ -334,11 +334,12 @@ func NewKubectlCommand(o KubectlOptions) *cobra.Command {
 				// indicates shell completion has been requested.
 				plugin.SetupPluginCompletion(cmd, args)
 			}
-
+			// 初始化
 			return initProfiling()
 		},
 		// PostRun完Hook
 		PersistentPostRunE: func(*cobra.Command, []string) error {
+			// flushProfiling保存性能相关的数据
 			if err := flushProfiling(); err != nil {
 				return err
 			}
@@ -362,6 +363,7 @@ func NewKubectlCommand(o KubectlOptions) *cobra.Command {
 
 	flags := cmds.PersistentFlags()
 
+	// 添加metrix分析
 	addProfilingFlags(flags)
 
 	flags.BoolVar(&warningsAsErrors, "warnings-as-errors", warningsAsErrors, "Treat warnings received from the server as errors and exit with a non-zero exit code")
@@ -480,8 +482,7 @@ func NewKubectlCommand(o KubectlOptions) *cobra.Command {
 	utilcomp.SetFactoryForCompletion(f)
 	registerCompletionFuncForGlobalFlags(cmds, f)
 
-
-	//这是一个全局的flag，可以在任何子命令中使用
+	//这是一个全局的flag，可以在任何子命令中使用（没有位置限制的命令）
 	cmds.AddCommand(alpha)
 	cmds.AddCommand(cmdconfig.NewCmdConfig(clientcmd.NewDefaultPathOptions(), o.IOStreams))
 	cmds.AddCommand(plugin.NewCmdPlugin(o.IOStreams))

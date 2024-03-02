@@ -20,6 +20,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"k8s.io/kubectl/pkg/generate"
+	"k8s.io/kubectl/pkg/util/i18n"
 	"net/url"
 	"runtime"
 	"strings"
